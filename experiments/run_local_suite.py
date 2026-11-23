@@ -20,7 +20,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DATA = os.path.join(HERE, "data")
+ROOT = os.path.dirname(HERE)
+DATA = os.path.join(ROOT, "data")
+RESULTS = os.path.join(ROOT, "results")
 EOT = 50256
 
 
@@ -508,7 +510,8 @@ def main():
     p.add_argument("--dev", default="cuda" if torch.cuda.is_available() else "cpu")
     p.add_argument("--seeds", type=int, default=3)
     args = p.parse_args()
-    out_path = os.path.join(HERE, "local_suite_results.json")
+    os.makedirs(RESULTS, exist_ok=True)
+    out_path = os.path.join(RESULTS, "local_suite_results.json")
     all_res = {}
 
     # ------------------------------------------------------------------

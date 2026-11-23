@@ -370,6 +370,7 @@ class MemoryBank(nn.Module):
 class Block(nn.Module):
     def __init__(self, d: int, H: int, rope: Rotary, *,
                  memory: MemoryBank | None = None, shared: bool = False,
+                 shared_has_pair: bool = True,
                  d_mem: int = 0, use_ctx_gate: bool = False, inject_res: bool = False):
         super().__init__()
         self.d, self.H, self.dk = d, H, d // H
@@ -386,7 +387,8 @@ class Block(nn.Module):
         self.gate, self.up, self.down = nn.Linear(d, f, bias=False), nn.Linear(d, f, bias=False), nn.Linear(f, d, bias=False)
 
         has_mem = (memory is not None) or shared
-        has_pair = (memory is not None and memory.mode != "word") or shared
+        has_pair = ((memory is not None and memory.mode != "word")
+                    or (shared and shared_has_pair))
         self.lam_w = nn.Parameter(torch.tensor(1.0)) if has_mem else None
         self.lam_p = nn.Parameter(torch.tensor(1.0)) if has_pair else None
 
@@ -488,6 +490,7 @@ class Model(nn.Module):
                 d, heads, rope,
                 memory=local,
                 shared=self.shared and active,
+                shared_has_pair=(self.bank is not None and self.bank.mode != "word"),
                 d_mem=d_mem,
                 use_ctx_gate=use_ctx_gate and active,
                 inject_res=inject_res and active,
@@ -547,7 +550,9 @@ def arm_config(arm: str, layers: int, d: int, d_mem: int):
         return dict(ve_layers=last2, memory_mode="word", shared=False, d_mem=d,
                     gate_mode="none", ctx_gate=False, inject_res=False, prehead=False, use_3g=False)
     if arm == "hard_stack":
-        return dict(ve_layers=last2, memory_mode="hash", shared=False, d_mem=d,
+        # Use d_mem with a projection: a full-d 1M-row pair table would be ~1.5B
+        # parameters in two layers and would not fit the intended table budget.
+        return dict(ve_layers=last2, memory_mode="hash", shared=False, d_mem=d_mem,
                     gate_mode="none", ctx_gate=False, inject_res=False, prehead=False, use_3g=False)
     if arm == "mp_ve":
         return dict(ve_layers=last2, memory_mode="tiered", shared=True, d_mem=d_mem,
@@ -633,7 +638,10 @@ def evaluate(model: Model, val_tokens: np.ndarray, cd: CountData, cfg: dict, arg
         toks = val_tokens[i:i + bs]
         t_md = make_train_ids(toks, cd, V, cfg)
         counts = _lookup_pair_counts(toks, cd.all_keys, cd.all_counts, V)
-        b_id = np.digitize(counts, [1, 10, 100, 1000]).astype(np.int64)
+        # Counts come from a prefix; rescale to full-corpus estimates before bucketing.
+        scale = (args.count_tokens / max(1.0, float(args.train_tokens))) if args.auto_scale_thresh else 1.0
+        b_id = np.digitize(counts.astype(np.float64) / max(1e-9, scale),
+                           [1, 10, 100, 1000]).astype(np.int64)
         ids = torch.from_numpy(toks[:, :-1]).to(device)
         tgt = torch.from_numpy(toks[:, 1:]).to(device)
         mem = {k: torch.from_numpy(v).to(device) for k, v in t_md.items()}
@@ -828,6 +836,10 @@ def main():
 
     cd = build_counts(stream, args.V, args.count_tokens, eff_hi, eff_mid, eff_g3,
                       args.n_hi, args.n_mid, args.n_3g)
+    args.eff_hi, args.eff_mid, args.eff_g3 = eff_hi, eff_mid, eff_g3
+    if is_main():
+        with open(os.path.join(args.out, "config.json"), "w", encoding="utf-8") as f:
+            json.dump(vars(args), f, indent=2)
 
     cfg = arm_config(args.arm, args.layers, args.d, args.d_mem)
     actual_n_hi = len(cd.hi_keys)

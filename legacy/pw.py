@@ -21,7 +21,7 @@ import argparse, json, os, time
 import numpy as np, torch, torch.nn as nn, torch.nn.functional as F
 from flops import flops_tok
 
-HERE = os.path.dirname(os.path.abspath(__file__)); DATA = os.path.join(HERE, "data"); EOT = 50256
+HERE = os.path.dirname(os.path.abspath(__file__)); DATA = os.path.join(os.path.dirname(HERE), "data"); EOT = 50256
 
 p = argparse.ArgumentParser()
 p.add_argument("--width", type=int, default=16); p.add_argument("--layers", type=int, default=2); p.add_argument("--heads", type=int, default=2)

@@ -15,7 +15,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DATA = os.path.join(HERE, "data")
+ROOT = os.path.dirname(HERE)
+DATA = os.path.join(ROOT, "data")
+RESULTS = os.path.join(ROOT, "results")
 EOT = 50256
 
 
@@ -476,7 +478,7 @@ def main():
             diffs = {b: round(re["scores"][b] - rw["scores"][b], 4) for b in ("pc_0", "pc_1", "pc_10", "pc_100", "pc_1000")}
             print(f"beta2={b2:5.3f} | word={rw['scores']['val_known']:.4f} eng={re['scores']['val_known']:.4f} | (eng - word): {diffs}")
 
-    save_path = os.path.join(HERE, "week1_diagnostics_results.json")
+    save_path = os.path.join(RESULTS, "week1_diagnostics_results.json")
     with open(save_path, "w", encoding="utf-8") as f:
         json.dump(out, f, indent=2)
     print(f"\nSaved full diagnostic JSON to {save_path}")

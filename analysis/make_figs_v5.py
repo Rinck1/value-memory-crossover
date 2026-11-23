@@ -20,7 +20,9 @@ import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 
 HERE = Path(__file__).resolve().parent
-OUT = HERE / "figs_v5"
+ROOT = HERE.parent
+RESULTS = ROOT / "results"
+OUT = ROOT / "figs_v5"
 OUT.mkdir(exist_ok=True)
 
 # ----------------------------------------------------------------------------
@@ -70,7 +72,7 @@ BUCKET_CENTERS = np.array([0.5, 5.0, 50.0, 500.0, 5000.0])
 
 
 def load(name: str):
-    with open(HERE / name, encoding="utf-8") as f:
+    with open(RESULTS / name, encoding="utf-8") as f:
         return json.load(f)
 
 
@@ -201,7 +203,7 @@ def fig3():
                  fontsize=8, loc="left")
 
     ax = axes[1]
-    widths = np.array(sorted(int(w) for w in P["widths"]))
+    widths = np.array([w for w in (16, 32, 64, 128) if str(w) in P["widths"]])
     cstar = np.array([P["widths"][str(w)]["cstar_mean_curve"] for w in widths])
     ax.plot(widths, cstar, "o", color=C["red"], mfc="white", mec=C["red"],
             label=r"estimated $c^\star$")

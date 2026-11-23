@@ -5,7 +5,9 @@ import os
 import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DATA = os.path.join(HERE, "data")
+ROOT = os.path.dirname(HERE)
+DATA = os.path.join(ROOT, "data")
+RESULTS = os.path.join(ROOT, "results")
 tr = np.memmap(os.path.join(DATA, "fineweb_train_000001.bin"), dtype=np.uint16, mode="r", offset=1024)
 va = np.memmap(os.path.join(DATA, "fineweb_val_000000.bin"), dtype=np.uint16, mode="r", offset=1024)
 
@@ -97,7 +99,7 @@ if __name__ == "__main__":
         print(f"T={T/1e9:5.2f}B | >=100: {pr['ge100']*100:5.1f}% | <100 (gate/low-rank active): {pr['lt100']*100:5.1f}% | "
               f"b10-99: {pr['b10_99']*100:4.1f}% | <10: {pr['lt10']*100:4.1f}% | >=1000: {pr['ge1000']*100:5.1f}%")
 
-    out_path = os.path.join(HERE, "pairstat_v50257.json")
+    out_path = os.path.join(RESULTS, "pairstat_v50257.json")
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump(results, f, indent=2)
     print(f"\nSaved to {out_path}")

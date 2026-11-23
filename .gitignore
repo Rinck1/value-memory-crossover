@@ -1,31 +1,29 @@
-# Data (downloaded by download_data.py; ~380 MB)
+# Data (downloaded by download_data.py; ~380 MB locally, ~5 GB for 2.5B cloud runs)
 data/
 
-# Generated / local artifacts
-figs_png/
+# Python / OS / IDE artifacts
 __pycache__/
 *.pyc
 *.pyo
-*.pth
-*.pt
-*.ckpt
-*.log
+*.pyd
+.Python
 .DS_Store
 Thumbs.db
+.vscode/
+.idea/
+
+# Training runs, checkpoints, and temporary logs
 runs/
 runs_125m/
 checkpoints/
 logs/
+*.pth
+*.pt
+*.ckpt
+*.log
 
-# Internal drafts and superseded documents
-ICML_Research_Proposal_v*.pdf
-ICML_Research_Proposal_v*.tex
-SG-VE_ICML_Proposal.tex
-SG-VE研究方案与实验简报.docx
-README_START.md
-PAPER.html
-
-# Environments / secrets
+# Virtual environments & secrets
 .venv/
 venv/
+env/
 .env

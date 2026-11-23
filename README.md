@@ -1,124 +1,104 @@
 # Word- vs Pair-Keyed Value Memories in Small Language Models
 
-Code, data-processing scripts, and result files for a controlled study of
-lookup-table memory in GPT-style language models.  A learned vector is added to
-the attention value stream for each token (word table) or each two-word
-sequence (pair table); the central question is when the pair table overtakes
-the word table as a function of how often the pair was seen in training.
+Code, data-processing scripts, and empirical results for a controlled study of lookup-table value memories in GPT-style language models. A learned vector is added to the attention value stream for single tokens (`word` table) or token bigrams/trigrams (`pair` / `U123` tables); we characterize when pair tables overtake word tables as a function of training sightings, table collisions, model width, and architecture.
 
-**Status:** research code and preliminary results.  The manuscript is a work in
-progress; the 125M-parameter runs and downstream evaluation are not included in
-this repository.  Some early internal drafts are deliberately not included
-because their claims were superseded by the current results (see *Caveats*).
+**Status:** Cleaned two-person research & cloud-scaling repository. All local multi-seed experiments (`V=1,500–6,000`), full-vocabulary (`V=50,257`) `30M`-token bridge runs, and causal-verified `125M` cloud training pipeline are ready.
 
-## Key findings
+---
 
-- **Sighting-count crossover.** Word tables lead on positions whose pair was
-  seen fewer than about 100 times; the pair-table advantage peaks in the
-  100--999 bucket.  In the raw small-vocabulary evaluation the 1000+ bucket is
-  mixed because about half of its input pairs contain `<UNK>`; after excluding
-  `<UNK>` input pairs, the 1000+ bucket also favors pair tables
-  (V=6,000: -0.024 nats).  See `unk_filtered_eval.json`.
-- **Preregistered held-out prediction.** At an unseen configuration
-  (V=4,500, d=48, L=4, 250 steps), the predicted per-bucket signs matched 5/5;
-  the overall gaps were within 0.012 nats of the preregistered values.
-- **Method.** Maturity-gated dual-granularity value memory (MP-VE) and its
-  shared-table / context-gated variant (U1/U123).  At L=4, w=32, V=6,000,
-  U123 improves known-token loss by +0.045 nats over a tuned hard stack
-  (3 seeds, paired t=8.0).  On an RTX 4070 at batch 1, U1 is about 14% slower
-  than the plain model (15.1 vs 13.3 ms per step) and U123 about 36% slower
-  (18.1 ms); see `latency_v50257.json`.
-- **Full-vocabulary bridge.** At V=50,257, 30M tokens, single seed, U123
-  reaches 4.8234 versus 4.9855 for an equal-active-FLOPs plain model and
-  4.8961 for the word table.  A wider plain model (d=384, 2.25x active FLOPs)
-  reaches 4.8570, so the method is positioned for equal-active-FLOPs,
-  compute-limited inference, not equal total weights.
-- **Boundary conditions.** An equal-weight plain model (w=88) remains the
-  best-loss model; our per-row sparse Adam variant is worse than dense Adam;
-  applying a maturity gate to a standalone Engram table does not help.
+## Key Verified Findings
 
-## Repository layout
+- **Sighting-count crossover:** Word tables lead on pairs seen `<100` times; pair tables overtake in `100–999`. In truncated-vocab (`V=1,500–6,000`) evaluations, the `1000+` bucket is mixed because `52%` of pair types (and `68–72%` of positions) involve `<UNK>`; excluding `<UNK>` input pairs flips `1000+` cleanly to a pair-table win (`V=6,000: -0.024` nats, see `results/unk_filtered_eval.json`).
+- **Held-out predictions:** Preregistered held-out vocabulary (`V=4,500, d=48, L=4, 250 steps`, 3 seeds) matched `5/5` per-bucket signs within `<0.012` nats (`docs/RESULTS.md` Round 30). Held-out fine-bucket width tests (`d=24, 48`) reject naive linear `c* ~ d` (`alpha=1.0`), supporting a weakly identified sublinear trend over `d=16–64`.
+- **Upgraded architecture (`U123`):** Sharing a wider tiered bank (`1+2+3-gram`) across all layers with context-gated `V` + residual + pre-head readout improves `L=4, w=32, V=6,000` by `+0.0658` over `Word` (`t=7.2`) and `+0.0451` over `Hard-Stack` (`t=8.0`), beating a matched-adapter hashed control (`CTRL_hs`) by `+0.0159` (`t=5.0`) with `35%` fewer table params (`results/upgrade_search_results.json`).
+- **Full-vocabulary `V=50,257` bridge (`30M tokens`, `10%` prefix counts, Seed 0):**
+  - `plain_d256_eqFLOP`: `4.9855` (`15.68 ms` b1, `40.6k tok/s` train)
+  - `word_d256_last2`: `4.8961` (`12.74 ms` b1, `38.1k tok/s` train)
+  - `U1_shared_d512_all6`: `4.8658` (`15.29 ms` b1, `276.9k tok/s` b16-infer, `31.2k tok/s` train)
+  - `plain_d384_eqWeights` (`2.25x` active FLOPs): `4.8570` (`13.51 ms` b1, `34.9k tok/s` train)
+  - `CTRL_hs_d256_prefix10`: `4.8324` (`18.32 ms` b1, `24.6k tok/s` train)
+  - `CTRL_hs_pruned_d256_prefix10`: `4.8263` (`18.30 ms` b1, `+0.0431` on `pc_0` via pruning)
+  - **`U123_d256_prefix10`**: **`4.8234`** (`18.93 ms` b1, `25.0k tok/s` train, `+0.0231` over `CTRL_hs_pruned` on `pc_100` via exact `2g/3g`)
+- **Strict boundaries & caveats:** Equal-total-weights plain models still dominate at `L=4, w=88`; dense Adam outperforms per-row sparse Adam by `0.018` nats (`results/p0_results.json` after `index_add_` fix); maturity gating on a standalone Engram table fails without a 1-gram word fallback.
 
-| Path | Description |
-|---|---|
-| `pw.py` | Core model / training script: word and pair value tables, Engram-style baselines, per-bucket evaluation |
-| `run_local_suite.py` | Three-seed local suite (orthogonality, phase diagram, width scaling, L=4 ablations, held-out vocabulary, beta2 diagnostics) |
-| `diag_week1.py` | First-week diagnostics (Engram gate vs frequency, go/no-go comparison, beta2) |
-| `run_upgrade_search.py` | Twelve-arm upgrade search (shared tables, dual-path gating, 3-gram routing, controls) |
-| `theory_cstar_analysis.py` | Crossover-count estimation and interval-censored analysis |
-| `pairstat_scale.py` | Pair-sighting statistics at V=50,257 |
-| `make_figs_v5.py` | Generates every figure in `figs_v5/` |
-| `download_data.py` | Downloads FineWeb shards and builds `data/counts.npy` |
-| `results.jsonl` | 872-run log from the original small-scale grid |
-| `RESULTS.md` | Lab notebook for the original grid |
-| `LITERATURE.md` | Literature notes |
-| `local_suite_results.json` | Results for `run_local_suite.py` |
-| `p0_results.json` | Results for the P0 checks (fine c*, held-out prediction, shape search, ablations, 5 seeds, prefix/AdamW) |
-| `upgrade_search_results.json` | Results for the upgrade search |
-| `v50257_bridge_results.json` | Full-vocabulary 30M-token bridge |
-| `theory_cstar_analysis.json` | Numerical output of the c* analysis |
-| `pairstat_v50257.json` | Pair-sighting shares at V=50,257 |
-| `unk_filtered_eval.json` | Per-bucket gaps with `<UNK>` input pairs excluded |
-| `latency_v50257.json` | Batch-1 latency measurements at V=50,257 |
-| `figures/` | Figures for the original manuscript |
-| `figs_v5/` | Current figures (PDF + PNG), captions, and figure README |
-| `PAPER.md`, `paper.pdf` | Manuscript draft (may lag the current results) |
+---
 
-## Setup
+## Repository Structure
+
+```text
+.
+├── README.md                    # Project overview & quick start
+├── CONTRIBUTING.md              # Collaborator workflow, branch rules, and reporting standards
+├── CLOUD_AGENT_HANDOFF.md       # Step-by-step cloud 4-GPU execution manual (125M x 2.5B)
+├── requirements.txt             # Python dependencies
+├── LICENSE                      # MIT License
+├── .gitignore
+│
+├── download_data.py             # Multi-threaded FineWeb10B-GPT2 shard downloader & verifier
+├── train_125m.py                # Cloud-scale bf16 125M trainer (10 arms, causal-verified)
+├── run_125m_experiments.sh      # 4-GPU multi-wave cloud launch script
+│
+├── experiments/                 # Reproducible local & bridge training/eval scripts
+│   ├── run_local_suite.py       # 6-block 3-seed local experimental suite
+│   ├── run_p0_blocks.py         # P0 checks (shape search, 5-seed, prefix, AdamW, SparseAdam)
+│   ├── run_step1_fine_cstar.py  # Fine-bucket c*(d) evaluation
+│   ├── run_heldout_widths_cstar.py
+│   ├── run_theory_tests_L_M_rho.py
+│   ├── run_upgrade_search.py    # U1-U4 + matched-adapter controls (L=4, V=6,000)
+│   ├── run_v50257_bridge.py     # V=50,257 30M bridge (plain, word, mp_ve, d384)
+│   ├── run_v50257_upgrades.py   # V=50,257 30M upgrades (U1, U123, CTRL_hs)
+│   ├── run_v50257_multiseed.py  # V=50,257 multi-seed & CTRL_hs_pruned runner
+│   ├── measure_v50257_latency.py
+│   ├── eval_non_unk_v6000.py
+│   ├── diag_week1.py
+│   └── pairstat_scale.py
+│
+├── analysis/                    # Theory analysis & publication figure generation
+│   ├── theory_cstar_analysis.py
+│   └── make_figs_v5.py          # Generates all figs_v5/*.pdf & *.png from results/*.json
+│
+├── results/                     # Committed JSON outputs (1-to-1 with experiments/ & analysis/)
+├── figs_v5/                     # Current publication figures (PDF + PNG + captions.tex + README)
+├── docs/                        # Draft manuscript (PAPER.md, paper.pdf), RESULTS.md, LITERATURE.md
+└── legacy/                      # Original 872-run small-scale baseline scripts & results.jsonl
+```
+
+---
+
+## Setup & Quick Start
 
 ```bash
 python -m venv .venv
 # Windows: .venv\Scripts\activate
 # macOS/Linux: source .venv/bin/activate
 pip install -r requirements.txt
-python download_data.py
+
+# Fetch validation + 100M-token training shard (~380 MB) and verify
+python download_data.py --shards 1 --workers 4 --verify
 ```
 
-`download_data.py` fetches two FineWeb GPT-2-tokenized shards (~380 MB) from
-`kjj0/fineweb10B-gpt2` and builds `data/counts.npy`.  The data directory is not
-committed.  The script uses `curl` (`curl.exe` on Windows).
-
-## Reproduce
+### Reproduce Local Benchmarks & Figures
 
 ```bash
-# Single run: plain model
-python pw.py --dev cuda --V 6000 --width 16 --layers 2 --steps 150 --batch 128 --elr 0.1 --tag repro-plain
+# Regenerate all publication figures in figs_v5/ from committed JSONs (no GPU needed)
+python analysis/make_figs_v5.py
 
-# Single run: word value table
-python pw.py --dev cuda --V 6000 --width 16 --layers 2 --steps 150 --batch 128 --elr 0.1 --ve 0,1 --tlr 0.1 --tag repro-word
+# Re-run c*(d) & <UNK>-composition analysis (no GPU needed)
+python analysis/theory_cstar_analysis.py
 
-# Three-seed local suite (about 15-25 min on an RTX 4070)
-python run_local_suite.py --dev cuda
+# Run 3-seed local suite on GPU (~20 min on RTX 4070)
+python experiments/run_local_suite.py --dev cuda
 
-# Figures
-python make_figs_v5.py
+# Smoke-test 125M trainer across all 10 arms (CPU, <20 s)
+python train_125m.py --smoke --arm u123 --device cpu --out /tmp/smoke_u123
 ```
 
-Use `--dev cpu` if CUDA is unavailable.
+### Cloud 125M Scaling Runs
 
-## Caveats
+See `CLOUD_AGENT_HANDOFF.md` and `run_125m_experiments.sh` for the 4-GPU `2.5B`-token workflow.
 
-- **`<UNK>` contamination.** The raw small-vocabulary evaluation keeps
-  positions whose *input* pair contains `<UNK>` (about half of the 1000+
-  bucket at V=6,000).  Filtering those positions flips the 1000+ bucket to a
-  pair-table advantage (V=6,000: -0.024 nats); `unk_filtered_eval.json`
-  reports both the raw and filtered versions.  Use the filtered version when
-  interpreting the 1000+ bucket.
-- **Crossover exponent.** `c*` is only weakly identified over d=16--64; the
-  d=128 estimate is not identified (the residual advantage is at the noise
-  floor and the gap curve changes sign five times).  The conservative
-  interval-censored bound includes alpha=1; the sublinear exponent is a
-  weakly identified empirical trend, not a proven scaling law.
-- **Bridge scale.** The V=50,257 results are 30M-token, single-seed directional
-  checks, not 125M-parameter results.
-- **Equal weights.** Equal-weight plain models remain strong; the method's
-  claim is about equal active FLOPs / compute-limited inference.
-- **Manuscript.** `PAPER.md` and `paper.pdf` are drafts.  The current results
-  and caveats are in the JSON files and `figs_v5/README.md`; where they
-  disagree, the JSON files and `figs_v5/README.md` take precedence.
+---
 
 ## License
 
-Code is released under the MIT License (see `LICENSE`).  The manuscript text
-and figures are copyright the authors; please cite the manuscript if you use
-them.
+Code is released under the MIT License (`LICENSE`). Manuscript text and figures are copyright the authors.

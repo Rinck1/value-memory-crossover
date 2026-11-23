@@ -118,6 +118,8 @@ If time/GPU budget allows, wrap `Model` from `train_125m.py` into a lightweight 
 
 ## 4. Reference Baselines Already Measured Locally (`V=50,257, 30M tokens, L=6, d=256`, Seed 0)
 
+*(Full JSON outputs live in `results/v50257_bridge_results.json` and `results/latency_v50257.json`; local scripts live in `experiments/`.)*
+
 So you have an immediate sanity reference while watching Wave 1 curves:
 - `plain_d256_eqFLOP`: `val = 4.9855` (`b1 = 15.68 ms`, `train = 40.6k tok/s`)
 - `word_d256_last2`: `val = 4.8961` (`b1 = 12.74 ms`, `train = 38.1k tok/s`)
