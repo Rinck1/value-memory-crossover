@@ -15,17 +15,19 @@ because their claims were superseded by the current results (see *Caveats*).
 
 - **Sighting-count crossover.** Word tables lead on positions whose pair was
   seen fewer than about 100 times; the pair-table advantage peaks in the
-  100--999 bucket.  The 1000+ bucket is mixed in small vocabularies and is
-  partly an `<UNK>`-folding artifact (about half of the 1000+ input pairs
-  contain `<UNK>` at V=6,000).
+  100--999 bucket.  In the raw small-vocabulary evaluation the 1000+ bucket is
+  mixed because about half of its input pairs contain `<UNK>`; after excluding
+  `<UNK>` input pairs, the 1000+ bucket also favors pair tables
+  (V=6,000: -0.024 nats).  See `unk_filtered_eval.json`.
 - **Preregistered held-out prediction.** At an unseen configuration
   (V=4,500, d=48, L=4, 250 steps), the predicted per-bucket signs matched 5/5;
   the overall gaps were within 0.012 nats of the preregistered values.
 - **Method.** Maturity-gated dual-granularity value memory (MP-VE) and its
   shared-table / context-gated variant (U1/U123).  At L=4, w=32, V=6,000,
   U123 improves known-token loss by +0.045 nats over a tuned hard stack
-  (3 seeds, paired t=8.0).  U1 is the lower-overhead variant; a dedicated
-  latency measurement is pending.
+  (3 seeds, paired t=8.0).  On an RTX 4070 at batch 1, U1 is about 14% slower
+  than the plain model (15.1 vs 13.3 ms per step) and U123 about 36% slower
+  (18.1 ms); see `latency_v50257.json`.
 - **Full-vocabulary bridge.** At V=50,257, 30M tokens, single seed, U123
   reaches 4.8234 versus 4.9855 for an equal-active-FLOPs plain model and
   4.8961 for the word table.  A wider plain model (d=384, 2.25x active FLOPs)
@@ -56,6 +58,8 @@ because their claims were superseded by the current results (see *Caveats*).
 | `v50257_bridge_results.json` | Full-vocabulary 30M-token bridge |
 | `theory_cstar_analysis.json` | Numerical output of the c* analysis |
 | `pairstat_v50257.json` | Pair-sighting shares at V=50,257 |
+| `unk_filtered_eval.json` | Per-bucket gaps with `<UNK>` input pairs excluded |
+| `latency_v50257.json` | Batch-1 latency measurements at V=50,257 |
 | `figures/` | Figures for the original manuscript |
 | `figs_v5/` | Current figures (PDF + PNG), captions, and figure README |
 | `PAPER.md`, `paper.pdf` | Manuscript draft (may lag the current results) |
@@ -94,9 +98,11 @@ Use `--dev cpu` if CUDA is unavailable.
 
 ## Caveats
 
-- **`<UNK>` contamination.** At small vocabularies, positions whose *input*
-  pair contains `<UNK>` are currently kept in the evaluation.  About half of
-  the 1000+ bucket at V=6,000 contains `<UNK>`; filter those positions before
+- **`<UNK>` contamination.** The raw small-vocabulary evaluation keeps
+  positions whose *input* pair contains `<UNK>` (about half of the 1000+
+  bucket at V=6,000).  Filtering those positions flips the 1000+ bucket to a
+  pair-table advantage (V=6,000: -0.024 nats); `unk_filtered_eval.json`
+  reports both the raw and filtered versions.  Use the filtered version when
   interpreting the 1000+ bucket.
 - **Crossover exponent.** `c*` is only weakly identified over d=16--64; the
   d=128 estimate is not identified (the residual advantage is at the noise

@@ -1,0 +1,76 @@
+{
+  "protocol": {
+    "gpu": "NVIDIA GeForce RTX 4070 Laptop GPU",
+    "precision": "bf16 autocast (fp32 master table weights)",
+    "seq_len_prefill": 255,
+    "seq_len_step": 3,
+    "warmup_iters": 20,
+    "timed_iters": 100,
+    "why_train_throughput_differs_from_b1_latency": "During training (B=32, T=256), backward pass + dense Adam optimizer updates on 69M-77M fp32 table parameters account for the 16-23% throughput reduction. During inference (torch.no_grad, B=1), table optimizer steps and gradient scatters do not execute; only O(1) row gathers run."
+  },
+  "arms": {
+    "plain_d256_eqFLOP": {
+      "b1_seq256_mean_ms": 15.676,
+      "b1_seq256_std_ms": 3.537,
+      "b1_step_mean_ms": 13.263,
+      "b1_step_std_ms": 3.46,
+      "b16_infer_tok_per_s": 287349,
+      "train_tok_per_s": 40610
+    },
+    "word_d256_last2": {
+      "b1_seq256_mean_ms": 12.742,
+      "b1_seq256_std_ms": 3.456,
+      "b1_step_mean_ms": 12.851,
+      "b1_step_std_ms": 3.054,
+      "b16_infer_tok_per_s": 327415,
+      "train_tok_per_s": 38094
+    },
+    "mp_ve_d256_prefix10": {
+      "b1_seq256_mean_ms": 13.995,
+      "b1_seq256_std_ms": 2.632,
+      "b1_step_mean_ms": 14.179,
+      "b1_step_std_ms": 3.406,
+      "b16_infer_tok_per_s": 286406,
+      "train_tok_per_s": 34035
+    },
+    "U1_shared_d512_all6": {
+      "b1_seq256_mean_ms": 15.287,
+      "b1_seq256_std_ms": 2.985,
+      "b1_step_mean_ms": 15.054,
+      "b1_step_std_ms": 3.286,
+      "b16_infer_tok_per_s": 276882,
+      "train_tok_per_s": 31203
+    },
+    "CTRL_hs_d256_prefix10": {
+      "b1_seq256_mean_ms": 18.322,
+      "b1_seq256_std_ms": 3.76,
+      "b1_step_mean_ms": 17.524,
+      "b1_step_std_ms": 3.811,
+      "b16_infer_tok_per_s": 240909,
+      "train_tok_per_s": 24645
+    },
+    "CTRL_hs_pruned_d256_prefix10": {
+      "b1_seq256_mean_ms": 18.299,
+      "b1_seq256_std_ms": 3.748,
+      "b1_step_mean_ms": 18.034,
+      "b1_step_std_ms": 3.757,
+      "b16_infer_tok_per_s": 242821
+    },
+    "U123_d256_prefix10": {
+      "b1_seq256_mean_ms": 18.928,
+      "b1_seq256_std_ms": 3.723,
+      "b1_step_mean_ms": 18.06,
+      "b1_step_std_ms": 3.286,
+      "b16_infer_tok_per_s": 224253,
+      "train_tok_per_s": 24976
+    },
+    "plain_d384_eqWeights": {
+      "b1_seq256_mean_ms": 13.511,
+      "b1_seq256_std_ms": 2.629,
+      "b1_step_mean_ms": 13.005,
+      "b1_step_std_ms": 3.269,
+      "b16_infer_tok_per_s": 250249,
+      "train_tok_per_s": 34858
+    }
+  }
+}
