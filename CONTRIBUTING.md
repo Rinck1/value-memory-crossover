@@ -20,7 +20,7 @@ Welcome! This repository is set up so two people (plus a cloud GPU agent) can wo
 | Local GPU / `V=50,257` bridge scripts | `experiments/` | Resolve paths relative to `ROOT = Path(__file__).resolve().parent.parent` |
 | Zero-GPU fits, tables, plotting | `analysis/` | Keep figure styles & scripts deterministic |
 | Experimental outputs (`.json`) | `results/` | Every JSON in `results/` must correspond to a committed script |
-| Manuscript drafts & notes | `docs/` | Update `docs/RESULTS.md` whenever running a preregistered test |
+| Research proposal, experiment logs & literature | `docs/` | Keep `docs/PROPOSAL.md`, `docs/RESULTS.md`, and `ICML_Research_Proposal_v5.pdf` updated |
 | Historical Paper-06 872-run files | `legacy/` | Read-only historical reference |
 
 ---

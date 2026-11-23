@@ -32,7 +32,7 @@ python -c "import torch; print(torch.__version__, torch.cuda.is_available(), tor
 ```
 Ensure:
 - At least **300 GB free disk** if keeping all milestone checkpoints (20 runs x 6 milestones x 1.5–2.5 GB). **~40 GB** is enough if you keep only `ckpt_final.pt`; set a retention policy and delete `ckpt_*M.pt` after each arm if final-only.
-- If VRAM per GPU is **40 GB (A100-40G)** instead of **80/96 GB (A100-80G / H20 / H100)**, pass `--micro-batch 16 --grad-accum 16` (keeps exact global batch `131,072 tok/step`) so Dense Adam states on `~200M` table params never OOM.
+- If VRAM per GPU is **40 GB (A100-40G)** instead of **80/96 GB (A100-80G / H20 / H100)**, pass `--micro-batch 16 --grad-accum 16` (keeps exact global batch `131,072 tok/step`) so Dense Adam states on `~200M` table params never OOM. The `plain_eq_weights` arm (`d=1472`) should use `--micro-batch 16 --grad-accum 16` even on a 48 GB 4090.
 
 ### Step 1 — Download `2.5B` FineWeb Shards Concurrently (`~1–2 min`)
 ```bash
@@ -52,7 +52,7 @@ done
 # 2. Real 125M 25-step probe (adjust --micro-batch if OOM)
 python train_125m.py --arm u123 --data-dir ./data --count-tokens 50000000 --steps 25 \
     --eval-tokens 3000000 --log-interval 5 --compile 1 --out /tmp/probe_125m_u123
-python train_125m.py --arm plain_eq_weights --eq-width 1472 --eq-heads 16 --data-dir ./data \
+python train_125m.py --arm plain_eq_weights --eq-width 1472 --eq-heads 16 --micro-batch 16 --grad-accum 16 --data-dir ./data \
     --count-tokens 10000000 --steps 25 --eval-tokens 3000000 --log-interval 5 --compile 1 --out /tmp/probe_eqW
 ```
 **Check the probe output before proceeding:**

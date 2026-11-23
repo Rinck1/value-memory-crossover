@@ -44,8 +44,9 @@ wait_all "${pids[@]}"
 
 echo "=== [3/4] Wave 2 (Seed 0 Controls): Plain EqWeights | CTRL_hs_pruned | CTRL_word | U1 (Low-Latency) ==="
 pids=()
-# 1472 matches U123's ~462M total params for the default table budget (~460M body).
-CUDA_VISIBLE_DEVICES=0 python train_125m.py --arm plain_eq_weights --eq-width 1472 --eq-heads 16 --seed 0 --data-dir "${DATA_DIR}" --train-tokens "${TRAIN_TOKENS}" --compile 1 --out "${OUT_DIR}/plain_eqW_s0" & pids+=($!)
+# 1472 matches U123's ~462M total params (~460M body). Use 16 x 16 to keep the
+# same 131,072 tokens/step while fitting a 48 GB 4090 (32 x 8 can OOM at d=1472).
+CUDA_VISIBLE_DEVICES=0 python train_125m.py --arm plain_eq_weights --eq-width 1472 --eq-heads 16 --micro-batch 16 --grad-accum 16 --seed 0 --data-dir "${DATA_DIR}" --train-tokens "${TRAIN_TOKENS}" --compile 1 --out "${OUT_DIR}/plain_eqW_s0" & pids+=($!)
 CUDA_VISIBLE_DEVICES=1 python train_125m.py --arm ctrl_hs_pruned   --seed 0 --data-dir "${DATA_DIR}" --train-tokens "${TRAIN_TOKENS}" --compile 1 --out "${OUT_DIR}/ctrl_hs_pruned_s0" & pids+=($!)
 CUDA_VISIBLE_DEVICES=2 python train_125m.py --arm ctrl_word        --seed 0 --data-dir "${DATA_DIR}" --train-tokens "${TRAIN_TOKENS}" --compile 1 --out "${OUT_DIR}/ctrl_word_s0" & pids+=($!)
 CUDA_VISIBLE_DEVICES=3 python train_125m.py --arm u1               --seed 0 --data-dir "${DATA_DIR}" --train-tokens "${TRAIN_TOKENS}" --compile 1 --out "${OUT_DIR}/u1_s0" & pids+=($!)

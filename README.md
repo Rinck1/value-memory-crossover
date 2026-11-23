@@ -59,7 +59,7 @@ Code, data-processing scripts, and empirical results for a controlled study of l
 │
 ├── results/                     # Committed JSON outputs (1-to-1 with experiments/ & analysis/)
 ├── figs_v5/                     # Current publication figures (PDF + PNG + captions.tex + README)
-├── docs/                        # Draft manuscript (PAPER.md, paper.pdf), RESULTS.md, LITERATURE.md
+├── docs/                        # Research proposal (PROPOSAL.md, ICML_Research_Proposal_v5.pdf/.tex), RESULTS.md, LITERATURE.md
 └── legacy/                      # Original 872-run small-scale baseline scripts & results.jsonl
 ```
 
