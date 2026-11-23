@@ -16,10 +16,11 @@ import json
 import math
 import numpy as np
 
-sys.path.insert(0, r"C:\Users\ROG\Desktop\ICML")
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
 import run_local_suite as rls
 
-OUT = r"C:\Users\ROG\Desktop\ICML\theory_cstar_analysis.json"
+OUT = os.path.join(HERE, "theory_cstar_analysis.json")
 rng = np.random.default_rng(0)
 
 
@@ -47,7 +48,7 @@ def sign_changes(g):
 
 
 # ---------------------------------------------------------------- A
-p0 = json.load(open(r"C:\Users\ROG\Desktop\ICML\p0_results.json"))
+p0 = json.load(open(os.path.join(HERE, "p0_results.json")))
 s1 = p0["step1_fine_cstar"]
 FB = s1["fine_bucket_c"]
 keys_all = list(FB.keys())
@@ -161,7 +162,7 @@ resA["alpha_full_including_128"] = dict(slope=float(fs), r2=float(r2))
 print(f"full fit incl. d=128: alpha={fs:+.3f} R2={r2:.3f}")
 
 # ---------------------------------------------------------------- B
-suite = json.load(open(r"C:\Users\ROG\Desktop\ICML\local_suite_results.json"))
+suite = json.load(open(os.path.join(HERE, "local_suite_results.json")))
 resB = {}
 xsC, loC_rep, hiC_rep, loC_edge, hiC_edge = [], [], [], [], []
 for d in ("12", "16", "32", "64"):

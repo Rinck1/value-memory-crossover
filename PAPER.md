@@ -250,7 +250,7 @@ The rule turns the published comparisons from a disagreement into three points o
 - Sadhukhan, R., Cao, S., Dong, H., Zhao, C. et al. (2026). STEM: Scaling Transformers with Embedding Modules. arXiv:2601.10639.
 - Yu et al. (2025). Scone: Scaling Embedding Layers in Language Models. arXiv:2502.01637.
 - Zhou et al. (2024). Value Residual Learning. arXiv:2410.17897.
-- Rosić (2026). Value Embeddings: What They Store and When They Help. `conference-papers/llm-value-embeddings`.
+- Rosić (2026). Value Embeddings: What They Store and When They Help. Earlier technical report (available from the authors).
 
 ## Appendix
 
@@ -332,4 +332,4 @@ This result is consistent with Bank of Values, which puts its table in the last 
 
 Other layer pairs at depth 8 keep 50-62%, and the last layer alone keeps 51%. One table shared by all layers wins at vocabularies 500-1,500 but loses at 6,000 (0.028 against 0.044). The share holds with longer training: 88% at 132 tokens per weight and 84% at 264.
 
-**Full record.** The earlier long version of this paper, with all 10 claims and every table, is in [PAPER-full.html](PAPER-full.html).
+**Full record.** An earlier long version of this paper, with all 10 claims and every table, is available from the authors.

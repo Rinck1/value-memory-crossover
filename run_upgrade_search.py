@@ -17,7 +17,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-sys.path.insert(0, r"C:\Users\ROG\Desktop\ICML")
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
 import run_local_suite as rls
 
 
@@ -383,7 +384,7 @@ def train_eval_upg(data, ve_layers, d_mem=32, shared_bank=False, ctx_gate=False,
 
 def main():
     data = prepare_rich_data(6000, 300, 128, c3_thresh=30)
-    with open(r"C:\Users\ROG\Desktop\ICML\local_suite_results.json", "r", encoding="utf-8") as f:
+    with open(os.path.join(HERE, "local_suite_results.json"), "r", encoding="utf-8") as f:
         suite = json.load(f)
     ref_plain = suite["block_D_ablations_L4"]["plain_w32_eqFLOP"]
     ref_word = suite["block_D_ablations_L4"]["word_last2"]
@@ -412,7 +413,7 @@ def main():
     ]
 
     results = {}
-    out_path = r"C:\Users\ROG\Desktop\ICML\upgrade_search_results.json"
+    out_path = os.path.join(HERE, "upgrade_search_results.json")
     for name, cfg in cfgs:
         runs = [train_eval_upg(data, seed=sd, measure_latency=(sd == 0), **cfg) for sd in range(3)]
         s = rls.summarize(runs)

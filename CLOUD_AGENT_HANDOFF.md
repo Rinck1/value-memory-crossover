@@ -6,7 +6,7 @@
 
 ## 1. Verified Code & Files Already in Workspace
 
-All files below live in the project root (synced from `C:\Users\ROG\Desktop\ICML\`):
+All files below live in the project root:
 
 1. **`download_data.py`** — Multi-threaded concurrent downloader for `kjj0/fineweb10B-gpt2` (GPT-2 pre-tokenized `uint16` shards, `1024`-byte header, `100M` tokens / `~200 MB` per shard). Supports `--workers`, `--shards`, `--verify`, `.part` atomic writes, and `HF_ENDPOINT` fallback.
 2. **`train_125m.py`** — Fully audited, single-file `bf16` trainer (969 lines). Already **fixed & verified locally** against 6 bugs:
