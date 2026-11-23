@@ -522,6 +522,45 @@
         "naive_linear_alpha1_prediction": 1224.6,
         "distinguishing_test": "At d=48, naive linear scaling (alpha=1 from d=16) predicts c* = 1224.6 (> 726.6, so b_500_1000 MUST be negative), whereas our sublinear model (alpha=0.319) predicts c* = 588.6 (inside [348.8, 726.6], so b_500_1000 is positive)!"
       }
+    },
+    "heldout_verification_results": {
+      "24": {
+        "preregistered_cstar_sublinear": 476.3,
+        "naive_linear_alpha1_cstar": 612.3,
+        "measured_cstar": 508.5,
+        "measured_cross_bracket": "b_250_500 -> b_500_1000",
+        "measured_b_500_1000_gap": 0.01748,
+        "sublinear_error_pct": 6.8,
+        "linear_null_rejected_at_b500_1000": true
+      },
+      "48": {
+        "preregistered_cstar_sublinear": 594.2,
+        "naive_linear_alpha1_cstar": 1224.6,
+        "measured_cstar": 80.0,
+        "measured_cross_bracket": "b_40_70 -> b_70_100",
+        "measured_b_500_1000_gap": 0.03459,
+        "sublinear_error_pct": 86.5,
+        "linear_null_rejected_at_b500_1000": true
+      },
+      "five_width_fit_16_24_32_48_64": {
+        "widths": [
+          16,
+          24,
+          32,
+          48,
+          64
+        ],
+        "cstars": [
+          408.2,
+          508.5,
+          548.9,
+          80.0,
+          635.3
+        ],
+        "slope": -0.3331,
+        "intercept": 7.0399,
+        "r2": 0.0462
+      }
     }
   },
   "E_unk_and_1000plus_reconciliation": {

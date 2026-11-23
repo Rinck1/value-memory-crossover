@@ -12,6 +12,10 @@ __pycache__/
 *.log
 .DS_Store
 Thumbs.db
+runs/
+runs_125m/
+checkpoints/
+logs/
 
 # Internal drafts and superseded documents
 ICML_Research_Proposal_v*.pdf

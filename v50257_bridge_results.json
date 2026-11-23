@@ -1181,6 +1181,172 @@
           }
         }
       }
+    },
+    "CTRL_hs_pruned_d256_prefix10": {
+      "name": "CTRL_hs_pruned_d256_prefix10",
+      "params": 110718860,
+      "dense_params": 33787276,
+      "tab_params": 76931584,
+      "peak_vram_gb": 4.0,
+      "b1_lat_ms": 17.655,
+      "total_s": 1561.4,
+      "tok_per_s": 19212,
+      "checkpoints": {
+        "7.5M": {
+          "val": 5.540336608886719,
+          "pc_0": 5.7487,
+          "pc_1": 5.6562,
+          "pc_10": 5.5427,
+          "pc_100": 5.2235,
+          "pc_1000": 5.6075,
+          "tokens_M": 7.5,
+          "elapsed_s": 505.7
+        },
+        "15.0M": {
+          "val": 5.24708366394043,
+          "pc_0": 5.3494,
+          "pc_1": 5.3179,
+          "pc_10": 5.1921,
+          "pc_100": 4.9774,
+          "pc_1000": 5.4414,
+          "tokens_M": 15.0,
+          "elapsed_s": 901.8
+        },
+        "22.5M": {
+          "val": 5.0931196212768555,
+          "pc_0": 5.1529,
+          "pc_1": 5.1513,
+          "pc_10": 5.0115,
+          "pc_100": 4.8537,
+          "pc_1000": 5.3262,
+          "tokens_M": 22.5,
+          "elapsed_s": 1233.4
+        },
+        "30.0M": {
+          "val": 4.826338291168213,
+          "pc_0": 4.8597,
+          "pc_1": 4.8635,
+          "pc_10": 4.7295,
+          "pc_100": 4.6064,
+          "pc_1000": 5.0916,
+          "tokens_M": 30.0,
+          "elapsed_s": 1561.4
+        }
+      },
+      "seeds": {
+        "0": {
+          "seed": 0,
+          "total_s": 1561.4,
+          "tok_per_s": 19212,
+          "peak_vram_gb": 4.0,
+          "checkpoints": {
+            "7.5M": {
+              "val": 5.540336608886719,
+              "pc_0": 5.7487,
+              "pc_1": 5.6562,
+              "pc_10": 5.5427,
+              "pc_100": 5.2235,
+              "pc_1000": 5.6075,
+              "tokens_M": 7.5,
+              "elapsed_s": 505.7
+            },
+            "15.0M": {
+              "val": 5.24708366394043,
+              "pc_0": 5.3494,
+              "pc_1": 5.3179,
+              "pc_10": 5.1921,
+              "pc_100": 4.9774,
+              "pc_1000": 5.4414,
+              "tokens_M": 15.0,
+              "elapsed_s": 901.8
+            },
+            "22.5M": {
+              "val": 5.0931196212768555,
+              "pc_0": 5.1529,
+              "pc_1": 5.1513,
+              "pc_10": 5.0115,
+              "pc_100": 4.8537,
+              "pc_1000": 5.3262,
+              "tokens_M": 22.5,
+              "elapsed_s": 1233.4
+            },
+            "30.0M": {
+              "val": 4.826338291168213,
+              "pc_0": 4.8597,
+              "pc_1": 4.8635,
+              "pc_10": 4.7295,
+              "pc_100": 4.6064,
+              "pc_1000": 5.0916,
+              "tokens_M": 30.0,
+              "elapsed_s": 1561.4
+            }
+          }
+        }
+      },
+      "multiseed_summary": {
+        "n_seeds": 1,
+        "seed_ids": [
+          0
+        ],
+        "checkpoints": {
+          "7.5M": {
+            "val_mean": 5.5403,
+            "val_std": 0.0,
+            "pc_0_mean": 5.7487,
+            "pc_0_std": 0.0,
+            "pc_1_mean": 5.6562,
+            "pc_1_std": 0.0,
+            "pc_10_mean": 5.5427,
+            "pc_10_std": 0.0,
+            "pc_100_mean": 5.2235,
+            "pc_100_std": 0.0,
+            "pc_1000_mean": 5.6075,
+            "pc_1000_std": 0.0
+          },
+          "15.0M": {
+            "val_mean": 5.2471,
+            "val_std": 0.0,
+            "pc_0_mean": 5.3494,
+            "pc_0_std": 0.0,
+            "pc_1_mean": 5.3179,
+            "pc_1_std": 0.0,
+            "pc_10_mean": 5.1921,
+            "pc_10_std": 0.0,
+            "pc_100_mean": 4.9774,
+            "pc_100_std": 0.0,
+            "pc_1000_mean": 5.4414,
+            "pc_1000_std": 0.0
+          },
+          "22.5M": {
+            "val_mean": 5.0931,
+            "val_std": 0.0,
+            "pc_0_mean": 5.1529,
+            "pc_0_std": 0.0,
+            "pc_1_mean": 5.1513,
+            "pc_1_std": 0.0,
+            "pc_10_mean": 5.0115,
+            "pc_10_std": 0.0,
+            "pc_100_mean": 4.8537,
+            "pc_100_std": 0.0,
+            "pc_1000_mean": 5.3262,
+            "pc_1000_std": 0.0
+          },
+          "30.0M": {
+            "val_mean": 4.8263,
+            "val_std": 0.0,
+            "pc_0_mean": 4.8597,
+            "pc_0_std": 0.0,
+            "pc_1_mean": 4.8635,
+            "pc_1_std": 0.0,
+            "pc_10_mean": 4.7295,
+            "pc_10_std": 0.0,
+            "pc_100_mean": 4.6064,
+            "pc_100_std": 0.0,
+            "pc_1000_mean": 5.0916,
+            "pc_1000_std": 0.0
+          }
+        }
+      }
     }
   },
   "n_3g_prefix10": 13799,
@@ -1391,6 +1557,420 @@
             "t_stat": null,
             "per_seed": [
               0.0121
+            ]
+          }
+        }
+      }
+    },
+    "Pruning_only_CTRL_pruned_vs_hs": {
+      "common_seeds": [
+        0
+      ],
+      "checkpoints": {
+        "7.5M": {
+          "val": {
+            "diff_mean": 0.0028,
+            "diff_std": 0.0,
+            "t_stat": null,
+            "per_seed": [
+              0.0028
+            ]
+          },
+          "pc_0": {
+            "diff_mean": 0.0148,
+            "diff_std": 0.0,
+            "t_stat": null,
+            "per_seed": [
+              0.0148
+            ]
+          },
+          "pc_1": {
+            "diff_mean": 0.0075,
+            "diff_std": 0.0,
+            "t_stat": null,
+            "per_seed": [
+              0.0075
+            ]
+          },
+          "pc_10": {
+            "diff_mean": -0.003,
+            "diff_std": 0.0,
+            "t_stat": null,
+            "per_seed": [
+              -0.003
+            ]
+          },
+          "pc_100": {
+            "diff_mean": 0.0026,
+            "diff_std": 0.0,
+            "t_stat": null,
+            "per_seed": [
+              0.0026
+            ]
+          },
+          "pc_1000": {
+            "diff_mean": -0.0015,
+            "diff_std": 0.0,
+            "t_stat": null,
+            "per_seed": [
+              -0.0015
+            ]
+          }
+        },
+        "15.0M": {
+          "val": {
+            "diff_mean": 0.0058,
+            "diff_std": 0.0,
+            "t_stat": null,
+            "per_seed": [
+              0.0058
+            ]
+          },
+          "pc_0": {
+            "diff_mean": 0.0283,
+            "diff_std": 0.0,
+            "t_stat": null,
+            "per_seed": [
+              0.0283
+            ]
+          },
+          "pc_1": {
+            "diff_mean": -0.0002,
+            "diff_std": 0.0,
+            "t_stat": null,
+            "per_seed": [
+              -0.0002
+            ]
+          },
+          "pc_10": {
+            "diff_mean": 0.0034,
+            "diff_std": 0.0,
+            "t_stat": null,
+            "per_seed": [
+              0.0034
+            ]
+          },
+          "pc_100": {
+            "diff_mean": 0.0073,
+            "diff_std": 0.0,
+            "t_stat": null,
+            "per_seed": [
+              0.0073
+            ]
+          },
+          "pc_1000": {
+            "diff_mean": -0.0022,
+            "diff_std": 0.0,
+            "t_stat": null,
+            "per_seed": [
+              -0.0022
+            ]
+          }
+        },
+        "22.5M": {
+          "val": {
+            "diff_mean": 0.0069,
+            "diff_std": 0.0,
+            "t_stat": null,
+            "per_seed": [
+              0.0069
+            ]
+          },
+          "pc_0": {
+            "diff_mean": 0.0301,
+            "diff_std": 0.0,
+            "t_stat": null,
+            "per_seed": [
+              0.0301
+            ]
+          },
+          "pc_1": {
+            "diff_mean": 0.0041,
+            "diff_std": 0.0,
+            "t_stat": null,
+            "per_seed": [
+              0.0041
+            ]
+          },
+          "pc_10": {
+            "diff_mean": 0.0122,
+            "diff_std": 0.0,
+            "t_stat": null,
+            "per_seed": [
+              0.0122
+            ]
+          },
+          "pc_100": {
+            "diff_mean": -0.0078,
+            "diff_std": 0.0,
+            "t_stat": null,
+            "per_seed": [
+              -0.0078
+            ]
+          },
+          "pc_1000": {
+            "diff_mean": 0.003,
+            "diff_std": 0.0,
+            "t_stat": null,
+            "per_seed": [
+              0.003
+            ]
+          }
+        },
+        "30.0M": {
+          "val": {
+            "diff_mean": 0.0061,
+            "diff_std": 0.0,
+            "t_stat": null,
+            "per_seed": [
+              0.0061
+            ]
+          },
+          "pc_0": {
+            "diff_mean": 0.0431,
+            "diff_std": 0.0,
+            "t_stat": null,
+            "per_seed": [
+              0.0431
+            ]
+          },
+          "pc_1": {
+            "diff_mean": -0.0019,
+            "diff_std": 0.0,
+            "t_stat": null,
+            "per_seed": [
+              -0.0019
+            ]
+          },
+          "pc_10": {
+            "diff_mean": 0.0098,
+            "diff_std": 0.0,
+            "t_stat": null,
+            "per_seed": [
+              0.0098
+            ]
+          },
+          "pc_100": {
+            "diff_mean": -0.0061,
+            "diff_std": 0.0,
+            "t_stat": null,
+            "per_seed": [
+              -0.0061
+            ]
+          },
+          "pc_1000": {
+            "diff_mean": -0.0024,
+            "diff_std": 0.0,
+            "t_stat": null,
+            "per_seed": [
+              -0.0024
+            ]
+          }
+        }
+      }
+    },
+    "Exact_only_U123_vs_CTRL_pruned": {
+      "common_seeds": [
+        0
+      ],
+      "checkpoints": {
+        "7.5M": {
+          "val": {
+            "diff_mean": -0.0211,
+            "diff_std": 0.0,
+            "t_stat": null,
+            "per_seed": [
+              -0.0211
+            ]
+          },
+          "pc_0": {
+            "diff_mean": -0.0177,
+            "diff_std": 0.0,
+            "t_stat": null,
+            "per_seed": [
+              -0.0177
+            ]
+          },
+          "pc_1": {
+            "diff_mean": -0.0313,
+            "diff_std": 0.0,
+            "t_stat": null,
+            "per_seed": [
+              -0.0313
+            ]
+          },
+          "pc_10": {
+            "diff_mean": -0.0725,
+            "diff_std": 0.0,
+            "t_stat": null,
+            "per_seed": [
+              -0.0725
+            ]
+          },
+          "pc_100": {
+            "diff_mean": 0.0123,
+            "diff_std": 0.0,
+            "t_stat": null,
+            "per_seed": [
+              0.0123
+            ]
+          },
+          "pc_1000": {
+            "diff_mean": 0.0164,
+            "diff_std": 0.0,
+            "t_stat": null,
+            "per_seed": [
+              0.0164
+            ]
+          }
+        },
+        "15.0M": {
+          "val": {
+            "diff_mean": -0.0058,
+            "diff_std": 0.0,
+            "t_stat": null,
+            "per_seed": [
+              -0.0058
+            ]
+          },
+          "pc_0": {
+            "diff_mean": 0.0051,
+            "diff_std": 0.0,
+            "t_stat": null,
+            "per_seed": [
+              0.0051
+            ]
+          },
+          "pc_1": {
+            "diff_mean": -0.0123,
+            "diff_std": 0.0,
+            "t_stat": null,
+            "per_seed": [
+              -0.0123
+            ]
+          },
+          "pc_10": {
+            "diff_mean": -0.055,
+            "diff_std": 0.0,
+            "t_stat": null,
+            "per_seed": [
+              -0.055
+            ]
+          },
+          "pc_100": {
+            "diff_mean": 0.0257,
+            "diff_std": 0.0,
+            "t_stat": null,
+            "per_seed": [
+              0.0257
+            ]
+          },
+          "pc_1000": {
+            "diff_mean": 0.022,
+            "diff_std": 0.0,
+            "t_stat": null,
+            "per_seed": [
+              0.022
+            ]
+          }
+        },
+        "22.5M": {
+          "val": {
+            "diff_mean": -0.0029,
+            "diff_std": 0.0,
+            "t_stat": null,
+            "per_seed": [
+              -0.0029
+            ]
+          },
+          "pc_0": {
+            "diff_mean": 0.0044,
+            "diff_std": 0.0,
+            "t_stat": null,
+            "per_seed": [
+              0.0044
+            ]
+          },
+          "pc_1": {
+            "diff_mean": -0.0165,
+            "diff_std": 0.0,
+            "t_stat": null,
+            "per_seed": [
+              -0.0165
+            ]
+          },
+          "pc_10": {
+            "diff_mean": -0.0504,
+            "diff_std": 0.0,
+            "t_stat": null,
+            "per_seed": [
+              -0.0504
+            ]
+          },
+          "pc_100": {
+            "diff_mean": 0.0318,
+            "diff_std": 0.0,
+            "t_stat": null,
+            "per_seed": [
+              0.0318
+            ]
+          },
+          "pc_1000": {
+            "diff_mean": 0.028,
+            "diff_std": 0.0,
+            "t_stat": null,
+            "per_seed": [
+              0.028
+            ]
+          }
+        },
+        "30.0M": {
+          "val": {
+            "diff_mean": 0.0029,
+            "diff_std": 0.0,
+            "t_stat": null,
+            "per_seed": [
+              0.0029
+            ]
+          },
+          "pc_0": {
+            "diff_mean": 0.006,
+            "diff_std": 0.0,
+            "t_stat": null,
+            "per_seed": [
+              0.006
+            ]
+          },
+          "pc_1": {
+            "diff_mean": 0.0007,
+            "diff_std": 0.0,
+            "t_stat": null,
+            "per_seed": [
+              0.0007
+            ]
+          },
+          "pc_10": {
+            "diff_mean": -0.0233,
+            "diff_std": 0.0,
+            "t_stat": null,
+            "per_seed": [
+              -0.0233
+            ]
+          },
+          "pc_100": {
+            "diff_mean": 0.0231,
+            "diff_std": 0.0,
+            "t_stat": null,
+            "per_seed": [
+              0.0231
+            ]
+          },
+          "pc_1000": {
+            "diff_mean": 0.0145,
+            "diff_std": 0.0,
+            "t_stat": null,
+            "per_seed": [
+              0.0145
             ]
           }
         }
