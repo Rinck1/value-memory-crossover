@@ -1,0 +1,27 @@
+# Data (downloaded by download_data.py; ~380 MB)
+data/
+
+# Generated / local artifacts
+figs_png/
+__pycache__/
+*.pyc
+*.pyo
+*.pth
+*.pt
+*.ckpt
+*.log
+.DS_Store
+Thumbs.db
+
+# Internal drafts and superseded documents
+ICML_Research_Proposal_v*.pdf
+ICML_Research_Proposal_v*.tex
+SG-VE_ICML_Proposal.tex
+SG-VE研究方案与实验简报.docx
+README_START.md
+PAPER.html
+
+# Environments / secrets
+.venv/
+venv/
+.env

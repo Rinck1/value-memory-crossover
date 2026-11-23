@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 360" font-family="Helvetica, Arial, sans-serif" font-size="13">
+  <rect width="760" height="360" fill="#ffffff"/>
+  <text x="380" y="24" text-anchor="middle" font-size="14" fill="#333">A learned vector is added to what a word passes on through attention: one per word, or one per word pair?</text>
+  <!-- word row panel -->
+  <rect x="20" y="42" width="350" height="190" rx="8" fill="#fdf4ea" stroke="#d9822b" stroke-width="1.5"/>
+  <text x="195" y="66" text-anchor="middle" font-size="15" font-weight="bold" fill="#b8661c">Word vector: one per word</text>
+  <text x="40" y="96" fill="#333">the <tspan font-weight="bold" fill="#b8661c">cat</tspan> sat</text>
+  <text x="40" y="122" fill="#333">a <tspan font-weight="bold" fill="#b8661c">cat</tspan> ran</text>
+  <text x="40" y="148" fill="#333">my <tspan font-weight="bold" fill="#b8661c">cat</tspan> slept</text>
+  <path d="M128,92 C170,92 180,118 214,118" fill="none" stroke="#d9822b" stroke-width="1.6"/>
+  <path d="M120,118 L214,120" fill="none" stroke="#d9822b" stroke-width="1.6"/>
+  <path d="M135,144 C170,144 180,122 214,122" fill="none" stroke="#d9822b" stroke-width="1.6"/>
+  <rect x="216" y="104" width="134" height="32" rx="4" fill="#d9822b"/>
+  <text x="283" y="125" text-anchor="middle" fill="#fff" font-weight="bold">vector for "cat"</text>
+  <text x="195" y="180" text-anchor="middle" fill="#333">Every "cat" trains the same vector.</text>
+  <text x="195" y="204" text-anchor="middle" fill="#333">Seen <tspan font-weight="bold">900</tspan> times: well trained early.</text>
+  <!-- pair row panel -->
+  <rect x="390" y="42" width="350" height="190" rx="8" fill="#f3eefa" stroke="#7a5bb5" stroke-width="1.5"/>
+  <text x="565" y="66" text-anchor="middle" font-size="15" font-weight="bold" fill="#5e4391">Pair vector: one per two-word sequence</text>
+  <text x="410" y="96" fill="#333"><tspan font-weight="bold" fill="#5e4391">the cat</tspan> sat</text>
+  <text x="410" y="122" fill="#aaa">a cat ran</text>
+  <text x="410" y="148" fill="#aaa">my cat slept</text>
+  <path d="M494,92 C540,92 550,118 584,118" fill="none" stroke="#7a5bb5" stroke-width="1.6"/>
+  <rect x="586" y="104" width="138" height="32" rx="4" fill="#7a5bb5"/>
+  <text x="655" y="125" text-anchor="middle" fill="#fff" font-weight="bold">vector for "the cat"</text>
+  <text x="565" y="180" text-anchor="middle" fill="#333">Only the exact pair trains it.</text>
+  <text x="565" y="204" text-anchor="middle" fill="#333">Seen <tspan font-weight="bold">40</tspan> times: still mostly noise.</text>
+  <!-- sightings axis -->
+  <line x1="60" y1="292" x2="700" y2="292" stroke="#555" stroke-width="1.5"/>
+  <rect x="60" y="270" width="380" height="20" fill="#fdf4ea" stroke="#d9822b"/>
+  <rect x="440" y="270" width="260" height="20" fill="#f3eefa" stroke="#7a5bb5"/>
+  <text x="250" y="285" text-anchor="middle" fill="#b8661c" font-weight="bold">word vectors win</text>
+  <text x="570" y="285" text-anchor="middle" fill="#5e4391" font-weight="bold">pair vectors win</text>
+  <g fill="#333" text-anchor="middle">
+    <line x1="60" y1="292" x2="60" y2="299" stroke="#555"/><text x="60" y="314">0</text>
+    <line x1="187" y1="292" x2="187" y2="299" stroke="#555"/><text x="187" y="314">1</text>
+    <line x1="313" y1="292" x2="313" y2="299" stroke="#555"/><text x="313" y="314">10</text>
+    <line x1="440" y1="288" x2="440" y2="302" stroke="#222" stroke-width="2.5"/><text x="440" y="314" font-weight="bold">100</text>
+    <line x1="567" y1="292" x2="567" y2="299" stroke="#555"/><text x="567" y="314">1,000</text>
+  </g>
+  <text x="380" y="340" text-anchor="middle" fill="#333">times the two-word sequence was seen in training</text>
+  <text x="380" y="260" text-anchor="middle" fill="#666" font-size="12">Split the test loss by how often each position's two-word sequence was seen:</text>
+</svg>

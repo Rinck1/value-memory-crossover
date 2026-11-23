@@ -1,0 +1,89 @@
+% Academic captions for the v5 figures.  Compile with the paper; paths are
+% relative to the paper root (adjust if the figures live elsewhere).
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{figs_v5/fig1_crossover.pdf}
+  \caption{Word- versus pair-keyed value memory across pair-sighting buckets.
+  Points show the mean gap (pair loss minus word loss; positive means the word
+  table is better) at 300 training steps for three vocabularies; error bars are
+  s.e.m.\ over three seeds.  Word tables lead on pairs seen fewer than 100
+  times, and pair tables lead in the 100--999 bucket.  The 1000+ bucket is
+  mixed in these runs (see Section~X); we therefore state the crossover as a
+  range, not as a sharp universal threshold.}
+  \label{fig:crossover}
+\end{figure}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{figs_v5/fig2_phase.pdf}
+  \caption{Collision--variance phase diagram at $V=1{,}500$.  Cell colour is the
+  pair-minus-word loss gap (negative, blue: pair tables better); numbers are the
+  same gap in nats.  Pair tables cross over only when both the number of table
+  rows $M$ and the number of training tokens are large; with $M\le2{,}048$ the
+  collision bias prevents a crossover in this grid.}
+  \label{fig:phase}
+\end{figure}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{figs_v5/fig3_width_cstar.pdf}
+  \caption{(a) High-frequency pair advantage (word minus Engram loss in the
+  100--999 bucket) versus model width.  The advantage shrinks as the model
+  widens.  (b) Estimated crossover count $c^\star$ versus width.  The
+  $d=16$--$64$ subset grows sublinearly ($\alpha\approx0.32$); the full fit
+  including $d=128$ is non-monotone ($\alpha=-0.94$, $R^2=0.46$) and the
+  $d=128$ estimate is not identified.  We therefore report the sublinear trend
+  and do not claim a scaling law across all widths.}
+  \label{fig:width}
+\end{figure}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{figs_v5/fig4_method.pdf}
+  \caption{(a) Known-token loss at $L=4$, $w=32$, $V=6{,}000$ (300 steps,
+  three seeds; error bars are s.e.m.).  The dotted line marks the plain model
+  widened to the same total parameter count.  (b) Loss versus table parameters.
+  U1 (shared memory across four layers) is the latency-efficient variant; U123
+  (maturity routing plus pre-head readout) has the best loss among table methods
+  but is slower.  The equal-weight plain model still has the best loss at
+  $2.2\times$ the active FLOPs, so the method is positioned for
+  equal-active-FLOPs, compute-limited inference rather than equal weights.}
+  \label{fig:method}
+\end{figure}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{figs_v5/fig5_heldout.pdf}
+  \caption{Preregistered held-out prediction at an unseen configuration
+  ($V=4{,}500$, $d=48$, $L=4$, 250 steps $\times$ 128).  (a) Predicted versus
+  measured per-bucket gaps (Engram minus word); all five bucket signs match.
+  (b) Predicted versus measured overall gaps for three comparisons; the
+  absolute errors are 0.0016, 0.0029 and 0.0088 nats, all below the
+  preregistered 0.015-nat break threshold.}
+  \label{fig:heldout}
+\end{figure}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{figs_v5/fig6_gates_beta2.pdf}
+  \caption{(a) Bucket gates learned from a uniform initialisation of $0.5$ at
+  300 steps (mean $\pm$ s.d.\ across seeds and layers).  The 0 bucket receives
+  no training signal and remains near its initial value; the 1--9 bucket is
+  suppressed and the 100+ buckets saturate.  (b) Table-only $\beta_2$ sweep.
+  The crossover location is stable across $\beta_2\in[0.9,0.999]$; the
+  magnitude attenuates by roughly 20\%.}
+  \label{fig:gates}
+\end{figure}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{figs_v5/fig7_bridge.pdf}
+  \caption{Full-vocabulary ($V=50{,}257$) bridge at $L=6$, $d=256$, 30M
+  tokens (single seed; a directional check, not the 125M result).  MP-VE
+  improves over the equal-active-FLOPs plain model but trails the wider
+  $d=384$ plain model at 30M tokens.  The wider model uses $2.25\times$ the
+  active FLOPs; the comparison therefore illustrates the equal-weights boundary,
+  not a failure of the equal-FLOPs claim.}
+  \label{fig:bridge}
+\end{figure}
