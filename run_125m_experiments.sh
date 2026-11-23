@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Cloud 4-GPU / 1-GPU launcher for 125M x 2.5B FineWeb Value-Memory Experiments.
-# Step 1: Concurrent data download (val + 25 train shards = 5.0 GB)
+# Step 1: Concurrent data download (val + 26 train shards = 5.2 GB)
 # Step 2: Phase-1 Single-Seed Complete Comparison (8 key arms across two 4-GPU waves)
 # Step 3: Phase-2 Multi-Seed Confirmation (seeds 1 & 2 for headline arms: plain, word, u1, u123, ctrl_hs, ctrl_hs_pruned)
-# Step 4: Downstream lm-eval checkpoint evaluation & summary aggregation
+# Step 4: Summary aggregation (downstream lm-eval is optional; see handoff Step 6)
 
 set -euo pipefail
 
@@ -44,7 +44,8 @@ wait_all "${pids[@]}"
 
 echo "=== [3/4] Wave 2 (Seed 0 Controls): Plain EqWeights | CTRL_hs_pruned | CTRL_word | U1 (Low-Latency) ==="
 pids=()
-CUDA_VISIBLE_DEVICES=0 python train_125m.py --arm plain_eq_weights --eq-width 1152 --eq-heads 16 --seed 0 --data-dir "${DATA_DIR}" --train-tokens "${TRAIN_TOKENS}" --compile 1 --out "${OUT_DIR}/plain_eqW_s0" & pids+=($!)
+# 1472 matches U123's ~462M total params for the default table budget (~460M body).
+CUDA_VISIBLE_DEVICES=0 python train_125m.py --arm plain_eq_weights --eq-width 1472 --eq-heads 16 --seed 0 --data-dir "${DATA_DIR}" --train-tokens "${TRAIN_TOKENS}" --compile 1 --out "${OUT_DIR}/plain_eqW_s0" & pids+=($!)
 CUDA_VISIBLE_DEVICES=1 python train_125m.py --arm ctrl_hs_pruned   --seed 0 --data-dir "${DATA_DIR}" --train-tokens "${TRAIN_TOKENS}" --compile 1 --out "${OUT_DIR}/ctrl_hs_pruned_s0" & pids+=($!)
 CUDA_VISIBLE_DEVICES=2 python train_125m.py --arm ctrl_word        --seed 0 --data-dir "${DATA_DIR}" --train-tokens "${TRAIN_TOKENS}" --compile 1 --out "${OUT_DIR}/ctrl_word_s0" & pids+=($!)
 CUDA_VISIBLE_DEVICES=3 python train_125m.py --arm u1               --seed 0 --data-dir "${DATA_DIR}" --train-tokens "${TRAIN_TOKENS}" --compile 1 --out "${OUT_DIR}/u1_s0" & pids+=($!)

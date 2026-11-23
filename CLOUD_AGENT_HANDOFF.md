@@ -52,13 +52,13 @@ done
 # 2. Real 125M 25-step probe (adjust --micro-batch if OOM)
 python train_125m.py --arm u123 --data-dir ./data --count-tokens 50000000 --steps 25 \
     --eval-tokens 3000000 --log-interval 5 --compile 1 --out /tmp/probe_125m_u123
-python train_125m.py --arm plain_eq_weights --eq-width 1152 --eq-heads 16 --data-dir ./data \
+python train_125m.py --arm plain_eq_weights --eq-width 1472 --eq-heads 16 --data-dir ./data \
     --count-tokens 10000000 --steps 25 --eval-tokens 3000000 --log-interval 5 --compile 1 --out /tmp/probe_eqW
 ```
 **Check the probe output before proceeding:**
 1. Inspect `loss` over steps `1..25`: verify smooth monotonic decrease (if `lr_word=0.03 / lr_pair=0.02` causes any instability/spike at `d=768`, test `0.01 / 0.01` vs `0.03 / 0.02` in a 100-step check first!).
 2. Check `table_params` & `peak_vram_gb`: for `u123` (`count_tokens=250M`, `d_mem=256`), verify `peak_vram_gb < 0.80 * GPU_VRAM`.
-3. Check `plain_eq_weights` (`eq-width=1152`, `L=12`): verify `total` params roughly matches `u123` total params (adjust `--eq-width` to `1024` or `1280` if needed so `body_params(plain_eq_weights) ≈ total_params(u123)` within 15%).
+3. Check `plain_eq_weights` (`eq-width=1472`, `L=12`): verify `body_params(plain_eq_weights) ≈ total_params(u123)` (1472 gives ~460M body vs ~462M for U123 at the default table budget; adjust by ±64 if the probe's `[model] total=` differs by more than 10%).
 4. Estimate total wall-clock time from `tok/s`: `total_hours = (2.5e9 / tok_s) / 3600`.
 
 ### Step 3 — Run Wave 1 (Seed 0 Core 4 Arms) & Inspect Gate A
