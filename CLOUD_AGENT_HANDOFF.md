@@ -11,7 +11,7 @@ All files below live in the project root:
 1. **`download_data.py`** — Multi-threaded concurrent downloader for `kjj0/fineweb10B-gpt2` (GPT-2 pre-tokenized `uint16` shards, `1024`-byte header, `100M` tokens / `~200 MB` per shard). Supports `--workers`, `--shards`, `--verify`, `.part` atomic writes, and `HF_ENDPOINT` fallback.
 2. **`train_125m.py`** — Fully audited, single-file `bf16` trainer (969 lines). Already **fixed & verified locally** against 6 bugs:
    - Strict causal indexing verified (`--smoke` passes zero-target-leakage invariance test across ALL 10 arms: `plain`, `plain_eq_weights`, `word`, `hard_stack`, `mp_ve`, `u1`, `u123`, `ctrl_word`, `ctrl_hs`, `ctrl_hs_pruned`).
-   - Full-width `d=768` for `word`/`hard_stack` baselines + automatic projection fallback if `d_mem != d`.
+   - Full-width `d=768` for the `word` baseline; `hard_stack` uses `d_mem=256` with a projection (a full-`d` 1M-row pair table in two layers would be ~1.5B parameters). Automatic projection fallback if `d_mem != d`.
    - Exact actual table sizes (`len(cd.hi_keys/mid_keys/g3_keys)`) instead of allocating dead zero rows.
    - Zero unnecessary `all_keys` CPU binary search during training (`hash` computed on GPU; `tiered` only searches `hi_keys`/`mid_keys`; `ctrl_hs_pruned` searches compact `mature_keys`).
    - Automatic proportional prefix-threshold scaling (`--auto-scale-thresh 1`: e.g. `10%` prefix `250M` tokens scales `100 / 10 / 30` $\to$ `10 / 1 / 3`).
@@ -31,12 +31,12 @@ df -h .
 python -c "import torch; print(torch.__version__, torch.cuda.is_available(), torch.cuda.get_device_name(0), torch.cuda.device_count())"
 ```
 Ensure:
-- At least **30 GB free disk** (5.2 GB shards + ~15–20 GB checkpoints if keeping `ckpt_*.pt`).
+- At least **300 GB free disk** if keeping all milestone checkpoints (20 runs x 6 milestones x 1.5–2.5 GB). **~40 GB** is enough if you keep only `ckpt_final.pt`; set a retention policy and delete `ckpt_*M.pt` after each arm if final-only.
 - If VRAM per GPU is **40 GB (A100-40G)** instead of **80/96 GB (A100-80G / H20 / H100)**, pass `--micro-batch 16 --grad-accum 16` (keeps exact global batch `131,072 tok/step`) so Dense Adam states on `~200M` table params never OOM.
 
 ### Step 1 — Download `2.5B` FineWeb Shards Concurrently (`~1–2 min`)
 ```bash
-python download_data.py --shards 25 --workers 12 --data-dir ./data --counts-shards 2 --verify
+python download_data.py --shards 26 --workers 12 --data-dir ./data --counts-shards 2 --verify
 ```
 *(If `huggingface.co` is slow/blocked in your region, prepend `HF_ENDPOINT=https://hf-mirror.com`.)*
 Confirm final line prints: `[verify] 26/26 shards valid | Train tokens ready: 2.500B`.
@@ -75,6 +75,10 @@ Launch Wave 1 (in `run_125m_experiments.sh` or directly):
    - `u123` vs `word`
    - `u123` vs `ctrl_hs` trajectory (does `ctrl_hs` lead early and `u123` cross/maintain advantage by `1B–2.5B`, especially on `pc_0` unvisited and `pc_3`/`pc_4` mature collision protection?)
 3. Check `latency.b1_seq_ms_mean`, `b16_infer_tok_s`, and `train_tok_s`.
+
+**Bucket-label caveat (10% prefix counts).** After rescaling, `pc_3` = full 100–999 and `pc_4` = 1000+; `pc_2` = 10–99. `pc_1` (full 1–9) is unresolved at a 10% prefix, and `pc_0` contains full 0–9. Report `pc_0`, `pc_10`, `pc_100`, `pc_1000` as approximate buckets; do not claim exact 1–9 resolution.
+
+**Arm-selection caveat.** This 8-arm plan covers Equal-FLOPs (`plain`), BoV (`word`), main (`u123`), architecture control (`ctrl_hs`), pruning control (`ctrl_hs_pruned`), dense-adapter control (`ctrl_word`), equal-weights (`plain_eq_weights`), and low-latency (`u1`). It does **not** include `mp_ve` or `hard_stack`. If the 125M section claims `u123` vs those two baselines, add them as a third seed-0 wave (~20–25 GPU·h) before the multi-seed waves.
 
 ### Step 4 — Run Wave 2 (Seed 0 Disentanglement & Bounds)
 Run:
