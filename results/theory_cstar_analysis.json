@@ -691,5 +691,154 @@
         }
       }
     }
+  },
+  "F_three_component_tests": {
+    "test1_kkt_tier_ratio_sensitivity": {
+      "r=2.5": {
+        "pure_rent_dominated_ratio": 2.5,
+        "pure_variance_nu0.5_ratio": 6.25,
+        "pure_variance_nu0.6_ratio": 4.61,
+        "mixed_50pct_rent_nu0.5_ratio": 3.21
+      },
+      "r=3.0": {
+        "pure_rent_dominated_ratio": 3.0,
+        "pure_variance_nu0.5_ratio": 9.0,
+        "pure_variance_nu0.6_ratio": 6.24,
+        "mixed_50pct_rent_nu0.5_ratio": 4.0
+      },
+      "r=3.5": {
+        "pure_rent_dominated_ratio": 3.5,
+        "pure_variance_nu0.5_ratio": 12.25,
+        "pure_variance_nu0.6_ratio": 8.07,
+        "mixed_50pct_rent_nu0.5_ratio": 4.81
+      },
+      "r=4.0": {
+        "pure_rent_dominated_ratio": 4.0,
+        "pure_variance_nu0.5_ratio": 16.0,
+        "pure_variance_nu0.6_ratio": 10.08,
+        "mixed_50pct_rent_nu0.5_ratio": 5.63
+      }
+    },
+    "test2_heldout_M_crossing_trajectories": {
+      "prediction": "As hash table size M shrinks (96K -> 24K -> 6K), collision variance sigma_coll^2(U(T), M) grows faster with T, so U123's lead over CTRL_hs(M) must open EARLIER in training steps T and reach a LARGER 300-step margin.",
+      "trajectories": {
+        "M_6000": {
+          "75": {
+            "hs_val": 5.8234,
+            "u123_lead_mean": 0.0112,
+            "u123_lead_std": 0.0077,
+            "pc100_lead": 0.0292
+          },
+          "150": {
+            "hs_val": 5.5733,
+            "u123_lead_mean": 0.0352,
+            "u123_lead_std": 0.0019,
+            "pc100_lead": 0.0569
+          },
+          "225": {
+            "hs_val": 5.4301,
+            "u123_lead_mean": 0.0291,
+            "u123_lead_std": 0.0225,
+            "pc100_lead": 0.0448
+          },
+          "300": {
+            "hs_val": 5.344,
+            "u123_lead_mean": 0.025,
+            "u123_lead_std": 0.0106,
+            "pc100_lead": 0.0326
+          }
+        },
+        "M_24000": {
+          "75": {
+            "hs_val": 5.8206,
+            "u123_lead_mean": 0.0084,
+            "u123_lead_std": 0.0237,
+            "pc100_lead": 0.0198
+          },
+          "150": {
+            "hs_val": 5.5573,
+            "u123_lead_mean": 0.0192,
+            "u123_lead_std": 0.0023,
+            "pc100_lead": 0.0265
+          },
+          "225": {
+            "hs_val": 5.4192,
+            "u123_lead_mean": 0.0182,
+            "u123_lead_std": 0.0099,
+            "pc100_lead": 0.0268
+          },
+          "300": {
+            "hs_val": 5.3349,
+            "u123_lead_mean": 0.0159,
+            "u123_lead_std": 0.0056,
+            "pc100_lead": 0.0209
+          }
+        },
+        "M_96000": {
+          "75": {
+            "hs_val": 5.7982,
+            "u123_lead_mean": -0.014,
+            "u123_lead_std": 0.0145,
+            "pc100_lead": -0.007
+          },
+          "150": {
+            "hs_val": 5.5325,
+            "u123_lead_mean": -0.0057,
+            "u123_lead_std": 0.0056,
+            "pc100_lead": 0.0063
+          },
+          "225": {
+            "hs_val": 5.3979,
+            "u123_lead_mean": -0.0031,
+            "u123_lead_std": 0.0066,
+            "pc100_lead": 0.0075
+          },
+          "300": {
+            "hs_val": 5.3165,
+            "u123_lead_mean": -0.0025,
+            "u123_lead_std": 0.0032,
+            "pc100_lead": 0.0055
+          }
+        }
+      },
+      "U123_ref": {
+        "75": 5.8122,
+        "150": 5.5381,
+        "225": 5.401,
+        "300": 5.319
+      }
+    },
+    "test3_shared_bank_depth_and_grad_corr": {
+      "L_2": {
+        "indep_last2_val": 5.3624,
+        "U1_shared_d64_allL_val": 5.3581,
+        "U1_plus_3g_allL_val": 5.3567,
+        "U1_gain_over_indep_mean": 0.0043,
+        "U1_gain_over_indep_std": 0.0025,
+        "3g_gain_inside_U1_mean": 0.0014,
+        "measured_interlayer_grad_cosine": 0.1587,
+        "predicted_variance_factor_L_over_1_plus_Lminus1_rho": 1.73
+      },
+      "L_4": {
+        "indep_last2_val": 5.3486,
+        "U1_shared_d64_allL_val": 5.3398,
+        "U1_plus_3g_allL_val": 5.3368,
+        "U1_gain_over_indep_mean": 0.0088,
+        "U1_gain_over_indep_std": 0.0124,
+        "3g_gain_inside_U1_mean": 0.003,
+        "measured_interlayer_grad_cosine": 0.1278,
+        "predicted_variance_factor_L_over_1_plus_Lminus1_rho": 2.89
+      },
+      "L_6": {
+        "indep_last2_val": 5.3381,
+        "U1_shared_d64_allL_val": 5.333,
+        "U1_plus_3g_allL_val": 5.324,
+        "U1_gain_over_indep_mean": 0.0051,
+        "U1_gain_over_indep_std": 0.0099,
+        "3g_gain_inside_U1_mean": 0.009,
+        "measured_interlayer_grad_cosine": 0.117,
+        "predicted_variance_factor_L_over_1_plus_Lminus1_rho": 3.79
+      }
+    }
   }
 }

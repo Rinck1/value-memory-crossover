@@ -167,12 +167,22 @@ def train_with_checkpoints(data, ve_layers, d_mem, shared_bank, ctx_gate, inject
     )
 
 
+def save_incremental(th, f_block):
+    th["F_three_component_tests"] = f_block
+    with open(THEORY_JSON, "w", encoding="utf-8") as f:
+        json.dump(th, f, indent=2)
+
+
 def main():
     with open(THEORY_JSON, "r", encoding="utf-8") as f:
         th = json.load(f)
 
+    f_block = th.get("F_three_component_tests", {})
+
     # 1. KKT sensitivity table
     kkt_tab = kkt_sensitivity_table()
+    f_block["test1_kkt_tier_ratio_sensitivity"] = kkt_tab
+    save_incremental(th, f_block)
     print("=== Test 1: KKT Tier-Ratio c_hi/c_lo Sensitivity (Variance vs Memory-Rent Regime) ===")
     for k, v in kkt_tab.items():
         print(f"  {k}: {v}")
@@ -181,25 +191,36 @@ def main():
 
     # 2. Preregistered Held-Out M Crossing Test: CTRL_hs(M) vs U123 across M in {6000, 24000, 96000} and steps {75, 150, 225, 300}
     print("\n=== Test 2: Held-Out Table Size M Crossing Trajectory (M in {6000, 24000, 96000}, L=4, w=32, 3 seeds) ===")
-    prereg_M = {
+    prereg_M = f_block.get("test2_heldout_M_crossing_trajectories", {
         "prediction": (
             "As hash table size M shrinks (96K -> 24K -> 6K), collision variance sigma_coll^2(U(T), M) grows faster with T, "
             "so U123's lead over CTRL_hs(M) must open EARLIER in training steps T and reach a LARGER 300-step margin."
         ),
         "trajectories": {},
-    }
-    u123_runs = [
-        train_with_checkpoints(data, [0,1,2,3], d_mem=64, shared_bank=True, ctx_gate=True, inject_res=True,
-                               use_3g=True, bank_mode="mp_ve", pre_head_mem=True, seed=sd)
-        for sd in range(3)
-    ]
-    prereg_M["U123_ref"] = {
-        st: round(float(np.mean([r["ckpts"][st]["val_known"] for r in u123_runs])), 4)
-        for st in ("75", "150", "225", "300")
-    }
+    })
+    f_block["test2_heldout_M_crossing_trajectories"] = prereg_M
+    u123_runs = f_block.get("_u123_runs_cache")
+    if not u123_runs:
+        u123_runs = [
+            train_with_checkpoints(data, [0,1,2,3], d_mem=64, shared_bank=True, ctx_gate=True, inject_res=True,
+                                   use_3g=True, bank_mode="mp_ve", pre_head_mem=True, seed=sd)
+            for sd in range(3)
+        ]
+        f_block["_u123_runs_cache"] = u123_runs
+        prereg_M["U123_ref"] = {
+            st: round(float(np.mean([r["ckpts"][st]["val_known"] for r in u123_runs])), 4)
+            for st in ("75", "150", "225", "300")
+        }
+        save_incremental(th, f_block)
     print("  U123 trajectory (75/150/225/300):", prereg_M["U123_ref"])
 
     for M in (6000, 24000, 96000):
+        m_key = f"M_{M}"
+        if m_key in prereg_M["trajectories"]:
+            traj = prereg_M["trajectories"][m_key]
+            line = " | ".join(f"s={st}: {traj[st]['u123_lead_mean']:+.4f} (pc100:{traj[st]['pc100_lead']:+.4f})" for st in ("75", "150", "225", "300"))
+            print(f"  [Cached] CTRL_hs(M={M:5d}) - U123 | {line}")
+            continue
         hs_runs = [
             train_with_checkpoints(data, [0,1,2,3], d_mem=64, shared_bank=True, ctx_gate=True, inject_res=True,
                                    use_3g=False, bank_mode="hard_stack", pair_rows=M, pre_head_mem=True, seed=sd)
@@ -216,14 +237,20 @@ def main():
                 "u123_lead_std": round(sd_d, 4),
                 "pc100_lead": round(float(np.mean([h["ckpts"][st]["pc_100"] - u["ckpts"][st]["pc_100"] for h, u in zip(hs_runs, u123_runs)])), 4),
             }
-        prereg_M["trajectories"][f"M_{M}"] = traj
+        prereg_M["trajectories"][m_key] = traj
+        save_incremental(th, f_block)
         line = " | ".join(f"s={st}: {traj[st]['u123_lead_mean']:+.4f} (pc100:{traj[st]['pc100_lead']:+.4f})" for st in ("75", "150", "225", "300"))
         print(f"  CTRL_hs(M={M:5d}) - U123 | {line}")
 
     # 3. Depth Sweep L in {2, 4, 6} + Direct Layer-Gradient Correlation measurement
     print("\n=== Test 3: Shared-Bank Depth Scaling (L in {2, 4, 6}) & Inter-Layer Gradient Correlation ===")
-    depth_res = {}
+    depth_res = f_block.get("test3_shared_bank_depth_and_grad_corr", {})
+    f_block["test3_shared_bank_depth_and_grad_corr"] = depth_res
     for L in (2, 4, 6):
+        l_key = f"L_{L}"
+        if l_key in depth_res:
+            print(f"  [Cached] L={L}: {depth_res[l_key]}")
+            continue
         all_l = list(range(L))
         last_2 = [L - 2, L - 1]
         indep_runs = [
@@ -248,7 +275,7 @@ def main():
         d_u1 = [r0["ckpts"]["300"]["val_known"] - r1["ckpts"]["300"]["val_known"] for r0, r1 in zip(indep_runs, u1_runs)]
         d_3g = [r0["ckpts"]["300"]["val_known"] - r1["ckpts"]["300"]["val_known"] for r0, r1 in zip(u1_runs, u1_3g_runs)]
         rho_grad = u1_runs[0]["mean_interlayer_grad_cos"]
-        depth_res[f"L_{L}"] = {
+        depth_res[l_key] = {
             "indep_last2_val": round(ind_m, 4),
             "U1_shared_d64_allL_val": round(u1_m, 4),
             "U1_plus_3g_allL_val": round(u1_3g_m, 4),
@@ -260,16 +287,12 @@ def main():
                 round(L / (1.0 + (L - 1) * max(0.0, rho_grad)), 2) if rho_grad is not None else None
             ),
         }
+        save_incremental(th, f_block)
         print(f"  L={L} | indep_last2={ind_m:.4f} | U1_allL={u1_m:.4f} (gain={np.mean(d_u1):+.4f}±{np.std(d_u1,ddof=1):.4f}) | "
               f"U1+3g={u1_3g_m:.4f} (3g_gain={np.mean(d_3g):+.4f}) | grad_cos_rho={rho_grad}")
 
-    th["F_three_component_tests"] = {
-        "test1_kkt_tier_ratio_sensitivity": kkt_tab,
-        "test2_heldout_M_crossing_trajectories": prereg_M,
-        "test3_shared_bank_depth_and_grad_corr": depth_res,
-    }
-    with open(THEORY_JSON, "w", encoding="utf-8") as f:
-        json.dump(th, f, indent=2)
+    f_block.pop("_u123_runs_cache", None)
+    save_incremental(th, f_block)
     print("\nSaved F_three_component_tests to", THEORY_JSON)
 
 

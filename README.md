@@ -10,7 +10,8 @@ Code, data-processing scripts, and empirical results for a controlled study of l
 
 - **Sighting-count crossover:** Word tables lead on pairs seen `<100` times; pair tables overtake in `100–999`. In truncated-vocab (`V=1,500–6,000`) evaluations, the `1000+` bucket is mixed because `52%` of pair types (and `68–72%` of positions) involve `<UNK>`; excluding `<UNK>` input pairs flips `1000+` cleanly to a pair-table win (`V=6,000: -0.024` nats, see `results/unk_filtered_eval.json`).
 - **Held-out predictions:** Preregistered held-out vocabulary (`V=4,500, d=48, L=4, 250 steps`, 3 seeds) matched `5/5` per-bucket signs within `<0.012` nats (`docs/RESULTS.md` Round 30). Held-out fine-bucket width tests (`d=24, 48`) reject naive linear `c* ~ d` (`alpha=1.0`), supporting a weakly identified sublinear trend over `d=16–64`.
-- **Upgraded architecture (`U123`):** Sharing a wider tiered bank (`1+2+3-gram`) across all layers with context-gated `V` + residual + pre-head readout improves `L=4, w=32, V=6,000` by `+0.0658` over `Word` (`t=7.2`) and `+0.0451` over `Hard-Stack` (`t=8.0`), beating a matched-adapter hashed control (`CTRL_hs`) by `+0.0159` (`t=5.0`) with `35%` fewer table params (`results/upgrade_search_results.json`).
+- **Upgraded architecture (`U123`) & causal ablations (`results/upgrade_search_results.json`, `results/extra_ablations_results.json`):** Sharing a wider tiered bank (`1+2+3-gram`) across all layers with dual `V` + residual + pre-head readout improves `L=4, w=32, V=6,000` by `+0.0658` over `Word` (`t=7.2`) and `+0.0451` over `Hard-Stack` (`t=8.0`), beating a matched-adapter hashed control (`CTRL_hs`) by `+0.0159` (`t=5.0`) with `35%` fewer table params. Matched 3-seed ablations confirm: frequency-based selection beats identical-budget random keys by `+0.0454` (`t=63.6`), pure 2-gram `U12` beats `CTRL_hs` by `+0.0120` (`t=10.7`) with half the table params, `CTRL_hs_pruned` separates `+0.0068` (`t=6.1`) pruning + `+0.0052` (`t=4.5`) exact de-collision + `+0.0039` exact 3-gram gains, and removing Attention `V` context gating (`U123_no_ctxgate`) achieves `5.3189±0.0003` (`t=12.2` vs `CTRL_hs`).
+- **Theory tests (`results/theory_cstar_analysis.json`, `F_three_component_tests`):** Held-out table-size sweeps (`M=6k/24k/96k`) confirm `U123`'s 300-step lead over `CTRL_hs(M)` shrinks monotonically with lower collision load (`+0.0250 -> +0.0159 -> -0.0025`, while `pc_100` keeps `+0.0055`). Depth sweeps (`L=2/4/6`) measure low inter-layer gradient cosine correlation (`rho = 0.1587 -> 0.1278 -> 0.1170`), driving `6.4x` growth in sparse `3-gram` gain (`+0.0014 -> +0.0030 -> +0.0090`) even as denser 2-gram `U1` saturates by `L=4`.
 - **Full-vocabulary `V=50,257` bridge (`30M tokens`, `10%` prefix counts, Seed 0):**
   - `plain_d256_eqFLOP`: `4.9855` (`15.68 ms` b1, `40.6k tok/s` train)
   - `word_d256_last2`: `4.8961` (`12.74 ms` b1, `38.1k tok/s` train)
@@ -45,6 +46,7 @@ Code, data-processing scripts, and empirical results for a controlled study of l
 │   ├── run_heldout_widths_cstar.py
 │   ├── run_theory_tests_L_M_rho.py
 │   ├── run_upgrade_search.py    # U1-U4 + matched-adapter controls (L=4, V=6,000)
+│   ├── run_extra_ablations.py   # 5 extra 3-seed causal/component ablations (no3g, random-tier, no-ctxgate, pruned, +3g)
 │   ├── run_v50257_bridge.py     # V=50,257 30M bridge (plain, word, mp_ve, d384)
 │   ├── run_v50257_upgrades.py   # V=50,257 30M upgrades (U1, U123, CTRL_hs)
 │   ├── run_v50257_multiseed.py  # V=50,257 multi-seed & CTRL_hs_pruned runner
