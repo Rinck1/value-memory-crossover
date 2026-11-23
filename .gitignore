@@ -27,3 +27,6 @@ logs/
 venv/
 env/
 .env
+
+# Downloaded reference PDFs (use refs/download_refs.sh)
+refs/*.pdf
