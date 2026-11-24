@@ -34,6 +34,17 @@ def _patched_init(self, V, d_mem, n_hi, n_mid, n_3g=0, use_3g=False, bank_mode="
         if bank_mode == "hard_stack_3g" and n_3g > 0:
             self.n_3g_hash = n_3g + 1
             self.ve_3g = nn.Parameter(torch.randn(self.n_3g_hash, d_mem) * d_mem ** -0.5)
+    elif bank_mode == "mp_ve_no_mid":
+        _orig_init(self, V, d_mem, n_hi, 0, n_3g=n_3g, use_3g=use_3g, bank_mode="mp_ve", pair_rows=pair_rows)
+        self.ve_mid_a = self.ve_mid_p = None
+        self.bank_mode = bank_mode
+    elif bank_mode == "mp_ve_full_mid":
+        _orig_init(self, V, d_mem, n_hi, 0, n_3g=n_3g, use_3g=use_3g, bank_mode="mp_ve", pair_rows=pair_rows)
+        self.ve_mid_p = None
+        self.ve_mid_a = nn.Parameter(torch.randn(n_mid + 1, d_mem) * d_mem ** -0.5)
+        with torch.no_grad():
+            self.ve_mid_a[0].zero_()
+        self.bank_mode = bank_mode
     else:
         _orig_init(self, V, d_mem, n_hi, n_mid, n_3g=n_3g, use_3g=use_3g, bank_mode=bank_mode, pair_rows=pair_rows)
 
@@ -54,6 +65,14 @@ def _patched_lookup(self, ids, hi_id, mid_id, g3_id=None):
         if self.ve_3g is not None:
             h3 = ((p2 * 1000003 + p1) * 1000003 + ids) % self.n_3g_hash
             p_vec = p_vec + self.ve_3g[h3]
+        return w_vec, p_vec
+    if self.bank_mode in ("mp_ve_no_mid", "mp_ve_full_mid"):
+        w_vec = self.ve_word[ids]
+        p_vec = self.ve_hi[hi_id] * (hi_id > 0).unsqueeze(-1).float()
+        if self.bank_mode == "mp_ve_full_mid" and self.ve_mid_a is not None:
+            p_vec = p_vec + self.ve_mid_a[mid_id] * (mid_id > 0).unsqueeze(-1).float()
+        if self.ve_3g is not None and g3_id is not None:
+            p_vec = p_vec + self.ve_3g[g3_id] * (g3_id > 0).unsqueeze(-1).float()
         return w_vec, p_vec
     return _orig_lookup(self, ids, hi_id, mid_id, g3_id)
 
@@ -119,8 +138,11 @@ def main():
         ("U12_plus_prehead_no3g_d64",        data,      dict(ve_layers=[0,1,2,3], d_mem=64, shared_bank=True, ctx_gate=True,  inject_res=True, use_3g=False, bank_mode="mp_ve",             pre_head_mem=True)),
         ("CTRL_hs_pruned_d64_dual_prehead",  data,      dict(ve_layers=[0,1,2,3], d_mem=64, shared_bank=True, ctx_gate=True,  inject_res=True, use_3g=False, bank_mode="hard_stack_pruned", pre_head_mem=True, pair_rows=24000)),
         ("CTRL_hs_plus_3g_d64_dual_prehead", data,      dict(ve_layers=[0,1,2,3], d_mem=64, shared_bank=True, ctx_gate=True,  inject_res=True, use_3g=True,  bank_mode="hard_stack_3g",     pre_head_mem=True, pair_rows=24000)),
-        ("U123_random_tier_d64",             data_rand, dict(ve_layers=[0,1,2,3], d_mem=64, shared_bank=True, ctx_gate=True,  inject_res=True, use_3g=True,  bank_mode="mp_ve",             pre_head_mem=True)),
-        ("U123_no_ctxgate_d64",              data,      dict(ve_layers=[0,1,2,3], d_mem=64, shared_bank=True, ctx_gate=False, inject_res=True, use_3g=True,  bank_mode="mp_ve",             pre_head_mem=True)),
+        ("U123_random_tier_d64",             data_rand, dict(ve_layers=[0,1,2,3], d_mem=64, shared_bank=True, ctx_gate=True,  inject_res=True,  use_3g=True,  bank_mode="mp_ve",             pre_head_mem=True)),
+        ("U123_no_ctxgate_d64",              data,      dict(ve_layers=[0,1,2,3], d_mem=64, shared_bank=True, ctx_gate=False, inject_res=True,  use_3g=True,  bank_mode="mp_ve",             pre_head_mem=True)),
+        ("U123_no_mid_tier_d64",             data,      dict(ve_layers=[0,1,2,3], d_mem=64, shared_bank=True, ctx_gate=True,  inject_res=True,  use_3g=True,  bank_mode="mp_ve_no_mid",      pre_head_mem=True)),
+        ("U123_mid_fullrank_d64",            data,      dict(ve_layers=[0,1,2,3], d_mem=64, shared_bank=True, ctx_gate=True,  inject_res=True,  use_3g=True,  bank_mode="mp_ve_full_mid",    pre_head_mem=True)),
+        ("U123_no_res_d64",                  data,      dict(ve_layers=[0,1,2,3], d_mem=64, shared_bank=True, ctx_gate=True,  inject_res=False, use_3g=True,  bank_mode="mp_ve",             pre_head_mem=True)),
     ]
 
     print(f"Refs | CTRL_word={ref_ctrl_w['mean']:.4f} | CTRL_hs={ref_ctrl_hs['mean']:.4f} | U123={ref_u123['mean']:.4f}\n")
@@ -152,6 +174,12 @@ def main():
     print(f"  4) Fair 3g control (CTRL_hs+3g -> U123)      : {rls.paired_str(hs3g, ref_u123)}")
     print(f"  5) Frequency vs Random keys (Rand -> U123)   : {rls.paired_str(rand_t, ref_u123)}")
     print(f"  6) Context V-gate effect (NoGate -> U123)    : {rls.paired_str(no_cg, ref_u123)}")
+    no_mid = results["U123_no_mid_tier_d64"]
+    full_mid = results["U123_mid_fullrank_d64"]
+    no_res = results["U123_no_res_d64"]
+    print(f"  7) Mid low-rank tier gain (NoMid -> U123)    : {rls.paired_str(no_mid, ref_u123)}")
+    print(f"  8) Mid full-rank vs d/4 (U123 -> FullMid)    : {rls.paired_str(ref_u123, full_mid)}")
+    print(f"  9) Residual injection gain (NoRes -> U123)   : {rls.paired_str(no_res, ref_u123)}")
     print("Saved to", out_path)
 
 

@@ -3,6 +3,17 @@
 
 \begin{figure}[t]
   \centering
+  \includegraphics[width=\linewidth]{figs_v5/fig0_architecture.pdf}
+  \caption{Shared prefix-tiered conditional value memory (\texttt{U123}).
+  A 10\% prefix router allocates causal keys to a shared multi-granularity bank
+  (1-gram, full-rank exact high-frequency 2-gram, low-rank mid-frequency 2-gram,
+  and exact 3-gram) injected into attention values, residual streams, and a
+  final pre-head readout.}
+  \label{fig:arch}
+\end{figure}
+
+\begin{figure}[t]
+  \centering
   \includegraphics[width=\linewidth]{figs_v5/fig1_crossover.pdf}
   \caption{Word- versus pair-keyed value memory across pair-sighting buckets.
   Points show the mean gap (pair loss minus word loss; positive means the word
@@ -80,10 +91,21 @@
   \centering
   \includegraphics[width=\linewidth]{figs_v5/fig7_bridge.pdf}
   \caption{Full-vocabulary ($V=50{,}257$) bridge at $L=6$, $d=256$, 30M
-  tokens (single seed; a directional check, not the 125M result).  MP-VE
-  improves over the equal-active-FLOPs plain model but trails the wider
-  $d=384$ plain model at 30M tokens.  The wider model uses $2.25\times$ the
-  active FLOPs; the comparison therefore illustrates the equal-weights boundary,
-  not a failure of the equal-FLOPs claim.}
+  tokens (three seeds on \texttt{U123}, \texttt{CTRL\_hs\_pruned},
+  \texttt{CTRL\_hs}, and \texttt{plain\_d384}; error bars show s.d.).
+  (a) Both prefix-pruned models beat the equal-FLOPs baseline and the $2.25\times$
+  compute \texttt{plain\_d384} baseline. (b) Batch-16 inference throughput vs.\
+  loss Pareto frontier.}
   \label{fig:bridge}
+\end{figure}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{figs_v5/fig8_theory_tests.pdf}
+  \caption{Phenomenological model tests ($L=4$, $w=32$, $V=6{,}000$, three seeds).
+  (a) Relaxing hash table size $M$ from $6\text{k}$ to $96\text{k}$ shrinks
+  \texttt{U123}'s global lead and shifts $T_{\mathrm{cross}}$ right while the
+  mature \texttt{pc\_100} bucket still crosses cleanly. (b) Depth scaling ($L=2,4,6$)
+  paired with 3-seed inter-layer gradient cosine $\rho_{\ell,\ell'}$ ($0.15\to 0.11$).}
+  \label{fig:theory}
 \end{figure}

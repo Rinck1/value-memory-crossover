@@ -817,7 +817,14 @@
         "U1_gain_over_indep_std": 0.0025,
         "3g_gain_inside_U1_mean": 0.0014,
         "measured_interlayer_grad_cosine": 0.1587,
-        "predicted_variance_factor_L_over_1_plus_Lminus1_rho": 1.73
+        "predicted_variance_factor_L_over_1_plus_Lminus1_rho": 1.73,
+        "measured_interlayer_grad_cosine_3seed_mean": 0.1498,
+        "measured_interlayer_grad_cosine_3seed_std": 0.0336,
+        "measured_interlayer_grad_cosine_per_seed": [
+          0.1587,
+          0.178,
+          0.1126
+        ]
       },
       "L_4": {
         "indep_last2_val": 5.3486,
@@ -827,7 +834,14 @@
         "U1_gain_over_indep_std": 0.0124,
         "3g_gain_inside_U1_mean": 0.003,
         "measured_interlayer_grad_cosine": 0.1278,
-        "predicted_variance_factor_L_over_1_plus_Lminus1_rho": 2.89
+        "predicted_variance_factor_L_over_1_plus_Lminus1_rho": 2.89,
+        "measured_interlayer_grad_cosine_3seed_mean": 0.1271,
+        "measured_interlayer_grad_cosine_3seed_std": 0.0048,
+        "measured_interlayer_grad_cosine_per_seed": [
+          0.1278,
+          0.1315,
+          0.122
+        ]
       },
       "L_6": {
         "indep_last2_val": 5.3381,
@@ -837,7 +851,14 @@
         "U1_gain_over_indep_std": 0.0099,
         "3g_gain_inside_U1_mean": 0.009,
         "measured_interlayer_grad_cosine": 0.117,
-        "predicted_variance_factor_L_over_1_plus_Lminus1_rho": 3.79
+        "predicted_variance_factor_L_over_1_plus_Lminus1_rho": 3.79,
+        "measured_interlayer_grad_cosine_3seed_mean": 0.1142,
+        "measured_interlayer_grad_cosine_3seed_std": 0.0039,
+        "measured_interlayer_grad_cosine_per_seed": [
+          0.117,
+          0.1158,
+          0.1098
+        ]
       }
     }
   }

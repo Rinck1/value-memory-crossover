@@ -102,6 +102,7 @@ def main():
         ("CTRL_hs_d256_prefix10",      True,  lambda: upg.UpgradedBridgeModel(V, 256, 6, 8, 512, n_hi, 200000, n_3g, use_3g=False, bank_mode="hard_stack", hs_pair_rows=100000, ctx_gate=True, inject_res=True, pre_head_mem=True)),
         ("CTRL_hs_pruned_d256_prefix10", True, lambda: upg.UpgradedBridgeModel(V, 256, 6, 8, 512, n_hi, 200000, n_3g, use_3g=False, bank_mode="hard_stack", hs_pair_rows=100000, ctx_gate=True, inject_res=True, pre_head_mem=True)),
         ("U123_d256_prefix10",         True,  lambda: upg.UpgradedBridgeModel(V, 256, 6, 8, 512, n_hi, 200000, n_3g, use_3g=True,  bank_mode="mp_ve",      ctx_gate=True,  inject_res=True,  pre_head_mem=True)),
+        ("U123_no_ctxgate_d256_prefix10", True, lambda: upg.UpgradedBridgeModel(V, 256, 6, 8, 512, n_hi, 200000, n_3g, use_3g=True, bank_mode="mp_ve",     ctx_gate=False, inject_res=True,  pre_head_mem=True)),
         ("plain_d384_eqWeights",       False, lambda: bridge.BridgeModel(V, 384, 6, 8, set(),   "none",  n_hi, 200000)),
     ]
 

@@ -108,6 +108,8 @@ def update_summaries(results):
         ("Pruning_only_CTRL_pruned_vs_hs", "CTRL_hs_d256_prefix10",        "CTRL_hs_pruned_d256_prefix10"),
         ("Exact_only_U123_vs_CTRL_pruned", "CTRL_hs_pruned_d256_prefix10", "U123_d256_prefix10"),
         ("U123_vs_plain_d384",             "plain_d384_eqWeights",         "U123_d256_prefix10"),
+        ("U123_no_ctxgate_vs_CTRL_hs",     "CTRL_hs_d256_prefix10",        "U123_no_ctxgate_d256_prefix10"),
+        ("U123_no_ctxgate_vs_U123",        "U123_d256_prefix10",           "U123_no_ctxgate_d256_prefix10"),
     ]
     paired_out = {}
     for tag, ref_nm, arm_nm in pairs_to_track:
@@ -156,6 +158,12 @@ def run_single(arm_name, seed, data):
         return upg.run_upg_arm(
             arm_name, data, d_mem=512, mid_hash_rows=200000, use_3g=True,
             bank_mode="mp_ve", ctx_gate=True, inject_res=True, pre_head_mem=True,
+            eval_fracs=(0.25, 0.5, 0.75, 1.0), seed=seed, dev="cuda",
+        )
+    if arm_name == "U123_no_ctxgate_d256_prefix10":
+        return upg.run_upg_arm(
+            arm_name, data, d_mem=512, mid_hash_rows=200000, use_3g=True,
+            bank_mode="mp_ve", ctx_gate=False, inject_res=True, pre_head_mem=True,
             eval_fracs=(0.25, 0.5, 0.75, 1.0), seed=seed, dev="cuda",
         )
     if arm_name == "CTRL_hs_d256_prefix10":

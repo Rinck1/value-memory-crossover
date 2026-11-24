@@ -291,6 +291,25 @@ def main():
         print(f"  L={L} | indep_last2={ind_m:.4f} | U1_allL={u1_m:.4f} (gain={np.mean(d_u1):+.4f}±{np.std(d_u1,ddof=1):.4f}) | "
               f"U1+3g={u1_3g_m:.4f} (3g_gain={np.mean(d_3g):+.4f}) | grad_cos_rho={rho_grad}")
 
+    # Ensure 3-seed inter-layer gradient cosine rho_mean +- std is populated across L in {2, 4, 6}
+    for L in (2, 4, 6):
+        l_key = f"L_{L}"
+        if "measured_interlayer_grad_cosine_3seed_mean" in depth_res.get(l_key, {}):
+            continue
+        all_l = list(range(L))
+        rhos = [
+            train_with_checkpoints(data, all_l, d_mem=64, shared_bank=True, ctx_gate=False, inject_res=False,
+                                   use_3g=False, bank_mode="mp_ve", layers=L, eval_steps=(300,),
+                                   measure_grad_corr=True, seed=sd)["mean_interlayer_grad_cos"]
+            for sd in range(3)
+        ]
+        rho_m, rho_sd = float(np.mean(rhos)), float(np.std(rhos, ddof=1))
+        depth_res[l_key]["measured_interlayer_grad_cosine_3seed_mean"] = round(rho_m, 4)
+        depth_res[l_key]["measured_interlayer_grad_cosine_3seed_std"] = round(rho_sd, 4)
+        depth_res[l_key]["measured_interlayer_grad_cosine_per_seed"] = [round(float(x), 4) for x in rhos]
+        save_incremental(th, f_block)
+        print(f"  [3-seed rho] L={L} | rho={rho_m:.4f}+/-{rho_sd:.4f} (seeds={[round(x, 4) for x in rhos]})")
+
     f_block.pop("_u123_runs_cache", None)
     save_incremental(th, f_block)
     print("\nSaved F_three_component_tests to", THEORY_JSON)
