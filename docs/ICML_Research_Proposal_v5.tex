@@ -20,7 +20,7 @@
 
 \begin{abstract}
 \noindent
-离散 N-gram 查找表（Value Embeddings）通过在注意力价值流与残差流中引入 $\mathcal{O}(1)$ 内存检索，可在\textbf{等激活计算量（Equal Active FLOPs）}约束下持续突破标准密集主干的容量瓶颈。围绕现有文献中“1-gram 表与 2-gram 表孰优孰劣”的长期分歧，本文提出基于词对训练频次、哈希碰撞方差与容量分配的统一分析框架，并构造出跨层多粒度查表架构 \texttt{U123}，取得了多维度显著的实证进展：（1）\textbf{机制闭合与跨尺度一致律：} 定量证明 1-gram 在更新次数 $c<100$ 的低频区领先、2-gram 在 $100\text{--}999$ 区间实现反超；揭示小词表 \texttt{1000+} 桶表面混杂完全源自截断词表中占比达 $51.9\%$ 类型（$67.8\%\text{--}71.5\%$ 评估位置）的 \texttt{<UNK>} 词对污染，剔除 \texttt{<UNK>} 后一致翻转为清晰的 2-gram 净胜（$-0.024 \sim -0.058$ nats）。（2）\textbf{三大可检验现象学模型：} 建立显存约束 KKT 三档容量分配（条件性带宽比 $3\text{--}12\times$）、Zipf--Heaps 训练交叉时间 $T_{\text{cross}}$ 三项分解及跨层共享方差缩减假设（3-seed 实测层间梯度余弦相关性低至 $\rho_{\ell,\ell'} = 0.1498 \to 0.1271 \to 0.1142$ 随 $L=2,4,6$ 递减），并在 $(M,T)$ 相图、$d=24/48$ 持出宽度验证与 Round 30 跨词表预测（5/5 分桶符号全中，全局绝对误差 $0.0016\text{--}0.0088$ nats）中获得高度一致支持。（3）\textbf{多 Seed 强显著领先与成分消融：} 在 $L=4,w=32,V=6{,}000$ 上，5-seed \texttt{mp\_ve\_all4\_dense} 胜过解耦硬叠加 \texttt{hard\_stack} $+0.0228 \pm 0.0050$（$t=+10.29$）；集成跨层共享、双路注入与精确 \texttt{2g/3g} 银行的 \texttt{U123} 达到 \textbf{5.3190 $\pm$ 0.0068}，以少 $35\%$ 查表参数击败结构对齐控制臂 \texttt{CTRL\_hs}（$+0.0159 \pm 0.0055, \, t=+4.96$）与 \texttt{CTRL\_word}（$+0.0481 \pm 0.0042, \, t=+19.74$）；进一步补充的中频低秩剥离（去掉 \texttt{mid} 层退化 $-0.0139, \, t=-2.5$）与同参随机路由对照（暴跌 $-0.0454, \, t=-63.6$）共同证实各分层模块的因果必要性。（4）\textbf{全词表（$V=50{,}257$）3-Seed 规模化验证与重要预警：} 在 $30\text{M}$-token Bridge 中，保留 $d=256$ 低计算主干的 \texttt{CTRL\_hs\_pruned}（\textbf{4.8189 $\pm$ 0.0074}，3 seeds）与 \texttt{U123}（\textbf{4.8355 $\pm$ 0.0136}，3 seeds；B16 推理吞吐领先 \textbf{+17\%} 达 \textbf{238.0K tok/s}）双双稳健战胜 $2.25\times$ 激活算力的加宽密集基线 \texttt{plain\_d384}（$4.8599 \pm 0.0030$，3 seeds；\texttt{U123} 配对净胜 $+0.0243 \pm 0.0106, \, t=+3.96$）。同时，3-seed 对照揭露了关键工程边界：\texttt{CTRL\_hs\_pruned} 通过严格剪枝在未见桶 \texttt{pc\_0} 上相对未剪枝 \texttt{CTRL\_hs}（$4.8269 \pm 0.0106$）稳定净胜 $+0.0440 \pm 0.0022\,(t=+34.15)$；而 \texttt{U123} 在 \texttt{prefix10} 配置下因允许 \texttt{mid>=1} 引入了 $96.5\text{ 万}$ 稀疏低频词对哈希污染，反使其 3-seed 总分以 $0.0166$ nats 略逊于纯粹剪枝基线（且单核 Seed 0 上去掉上下文 $V$ 门控会退化 $-0.0070$ nats），直接指导了下一步 \texttt{125M × 2.5B} 规模实验的阈值与门控校准。
+离散 N-gram 查找表（Value Embeddings）通过在注意力价值流与残差流中引入 $\mathcal{O}(1)$ 内存检索，可在\textbf{等激活计算量（Equal Active FLOPs）}约束下持续突破标准密集主干的容量瓶颈。围绕现有文献中“1-gram 表与 2-gram 表孰优孰劣”的长期分歧，本文提出基于词对训练频次、哈希碰撞方差与容量分配的统一分析框架，并构造出跨层多粒度查表架构 \texttt{U123}，取得了多维度显著的实证进展：（1）\textbf{机制闭合与跨尺度一致律：} 定量证明 1-gram 在更新次数 $c<100$ 的低频区领先、2-gram 在 $100\text{--}999$ 区间实现反超；揭示小词表 \texttt{1000+} 桶表面混杂完全源自截断词表中占比达 $51.9\%$ 类型（$67.8\%\text{--}71.5\%$ 评估位置）的 \texttt{<UNK>} 词对污染，剔除 \texttt{<UNK>} 后一致翻转为清晰的 2-gram 净胜（$-0.024 \sim -0.058$ nats）。（2）\textbf{三大可检验现象学模型：} 建立显存约束 KKT 三档容量分配（条件性带宽比 $3\text{--}12\times$）、Zipf--Heaps 训练交叉时间 $T_{\text{cross}}$ 三项分解及跨层共享方差缩减假设（3-seed 实测层间梯度余弦相关性低至 $\rho_{\ell,\ell'} = 0.1498 \to 0.1271 \to 0.1142$ 随 $L=2,4,6$ 递减），并在 $(M,T)$ 相图、$d=24/48$ 持出宽度验证与 Round 30 跨词表预测（5/5 分桶符号全中，全局绝对误差 $0.0016\text{--}0.0088$ nats）中获得高度一致支持。（3）\textbf{多 Seed 强显著领先与成分消融：} 在 $L=4,w=32,V=6{,}000$ 上，5-seed \texttt{mp\_ve\_all4\_dense} 胜过解耦硬叠加 \texttt{hard\_stack} $+0.0228 \pm 0.0050$（$t=+10.29$）；集成跨层共享、双路注入与精确 \texttt{2g/3g} 银行的 \texttt{U123} 达到 \textbf{5.3190 $\pm$ 0.0068}，以少 $35\%$ 查表参数击败结构对齐控制臂 \texttt{CTRL\_hs}（$+0.0159 \pm 0.0055, \, t=+4.96$）与 \texttt{CTRL\_word}（$+0.0481 \pm 0.0042, \, t=+19.74$）；进一步补充的中频低秩剥离（去掉 \texttt{mid} 层退化 $-0.0139, \, t=-2.5$）与同参随机路由对照（暴跌 $-0.0454, \, t=-63.6$）共同证实各分层模块的因果必要性。（4）\textbf{全词表（$V=50{,}257$）3-Seed 规模化验证与严格归因边界：} 在 $30\text{M}$-token Bridge 中，保留 $d=256$ 低计算主干的 \texttt{CTRL\_hs\_pruned}（\textbf{4.8189 $\pm$ 0.0074}，3 seeds）与移除低秩瓶颈后的参数对齐变体 \texttt{U123\_v2\_fullmid}（$50\text{K} \times 512$ 全秩中频，\textbf{4.8072 $\pm$ 0.0099}，3 seeds，总表参 $76.39\text{M}$）均显著超越 $2.25\times$ 激活算力的加宽密集基线 \texttt{plain\_d384}（$4.8599 \pm 0.0030$，3 seeds；\texttt{fullmid} 配对净胜 \textbf{$+0.0527 \pm 0.0110, \, t=+8.27$}）。对比验证得出三条客观定论：（a）原始低秩 \texttt{U123}（$4.8355 \pm 0.0136$）因 $r=d_{\mathrm{mem}}/4=128$ 子空间瓶颈导致中频桶退化，改用参数中性的 \texttt{fullmid} 可恢复 $+0.0284 \pm 0.0193\,(t=+2.54$，双尾 $p\approx 0.085$）的边缘改进（仅调对齐初始化 \texttt{initfix} 在 Seed 1 仅恢复 $0.0058$）；（b）严格剪枝本身极具鲁棒性，\texttt{CTRL\_hs\_pruned} 在未见桶 \texttt{pc\_0} 上跨 3 seeds 净胜未剪枝 \texttt{CTRL\_hs}（$4.8269 \pm 0.0106$）$+0.0440 \pm 0.0022\,(t=+34.15)$；（c）\textbf{\texttt{fullmid} 相对 \texttt{CTRL\_hs\_pruned} 的 3-seed 总差仅为 $+0.0118 \pm 0.0163$（分种子 $+0.0231, +0.0192, -0.0069$，$t=+1.25$，统计不显著）}，因此当前证据仅证实“低秩瓶颈修复并打平剪枝哈希对照”，不可主张“精确/分层查表已稳胜剪枝+哈希”；能否在更重碰撞区拉开优势留待 \texttt{125M × 2.5B} 预注册检验。
 \end{abstract}
 
 \tableofcontents
@@ -234,17 +234,17 @@ KKT 条件使最优解自然裂解为高频全秩 $d$（$c \ge c_{\text{hi}}$）
 \subsection{Zipf 集中度使全词表精确 N-gram 查表从“不可行”变为“高效可行”}
 对 FineWeb 真实语料前 $100\text{M}$ tokens（GPT-2 全词表 $V=50{,}257$）统计表明（\texttt{pairstat\_v50257.json}）：全语料涌现出 $11{,}508{,}089$ 个独立词对，其中仅有 $109{,}774$ 个（占独立词对总数的 \textbf{0.954\%}）出现超过 100 次，却已覆盖验证集 \textbf{55.76\%} 的 token 位置。这意味着：如果朴素分配全词表 768 维双字向量，需耗时耗存的 $8.8\text{B}$ 参数；而利用高度 Zipf 集中效应实施三档路由，\textbf{仅需约 $1\%$ 的顶尖词汇搭配即可撬动全语料半数以上的语义覆盖}（外推至 $2.5\text{B}$ tokens 时成熟词对覆盖率下界将进一步攀升至 \textbf{82.7\%--87.2\%}，经 $10\text{M}\to 100\text{M}$ 盲测校准误差仅 $0.2\%$）。实际全词表 2g+3g 查表体积被轻松控制在 $69\text{--}77\text{M}$ 量级，真正实现了大词表无 \texttt{<UNK>} 部署的可行性跨越。
 
-\subsection{\texorpdfstring{$30\text{M}$}{30M}-Token 全词表多 Seed 实测：算力跨跃、前沿拆解与阈值校准预警}
-在 $L=6, d=256, V=50{,}257$ 模型上完成的全词表 $30\text{M}$ tokens 实验（表~\ref{tab:bridge50k} 与图~\ref{fig:fig7}，核心控制与对照臂均已完成 \textbf{3 seeds} 配对复现，全部仅依赖 10\% 前缀计数路由）同时给出了强有力的规模化确认与一条关键的工程修正信号：
+\subsection{\texorpdfstring{$30\text{M}$}{30M}-Token 全词表多 Seed 实测：低秩瓶颈定位、\texttt{fullmid} 修正与诚实统计边界}
+在 $L=6, d=256, V=50{,}257$ 模型上完成的全词表 $30\text{M}$ tokens 实验（表~\ref{tab:bridge50k} 与图~\ref{fig:fig7}，主线控制臂及改进版 \texttt{U123\_v2\_fullmid} 均已完成 \textbf{3 seeds} 配对复现，全部仅依赖 10\% 前缀计数路由）完整厘清了“跨层共享红利”与“中频压缩损失”的边界：
 
 \begin{table}[htbp]
 \centering
-\caption{全词表 $V=50{,}257$（FineWeb $30\text{M}$ tokens，10\% 前缀计数路由）3-Seed 核心对比与最新吞吐实测}
+\caption{全词表 $V=50{,}257$（FineWeb $30\text{M}$ tokens，10\% 前缀计数路由）3-Seed 核心对比与 \texttt{U123\_v2} 归因实测}
 \label{tab:bridge50k}
 \resizebox{\linewidth}{!}{%
 \begin{tabular}{lccccccc}
 \toprule
-\textbf{对比臂（括号为 Seeds 数）} & \textbf{Val Loss} & \textbf{\texttt{pc\_0}} & \textbf{\texttt{pc\_100}} & \textbf{总参（表参）} & \textbf{B1 延迟 (ms)} & \textbf{B16 推理 (tok/s)} & \textbf{核心实证定位} \\
+\textbf{对比臂（括号为 Seeds 数）} & \textbf{Val Loss} & \textbf{\texttt{pc\_0}} & \textbf{\texttt{pc\_100}} & \textbf{总参（表参）} & \textbf{B1 延迟 (ms)} & \textbf{B16 推理 (tok/s)} & \textbf{实证定位（3-Seed 严格归因）} \\
 \midrule
 \texttt{plain\_d256\_eqFLOP} (1s) & 4.9855 & 5.0715 & 4.7376 & 30.4M (0) & 10.63 & 367.0K & Equal Active FLOPs 主基线 \\
 \texttt{word\_d256\_last2} (1s) & 4.8961 & 4.9432 & 4.6631 & 56.2M (25.7M) & 11.13 & 383.8K & 单字表基线 \\
@@ -252,10 +252,13 @@ KKT 条件使最优解自然裂解为高频全秩 $d$（$c \ge c_{\text{hi}}$）
 \texttt{U1\_shared\_d512\_all6} (1s) & 4.8658 & 4.9305 & 4.6271 & 101.4M (69.4M) & 12.97 & 335.1K & 高吞吐 Pareto 前沿构型 \\
 \texttt{plain\_d384\_eqWeights} ($2.25\times$ FLOPs, 3s) & $4.8599 \pm 0.0030$ & $4.9037 \pm 0.0082$ & $4.6264 \pm 0.0012$ & 49.2M (0) & 11.73 & 252.7K & $2.25\times$ 算力加宽骨干 \\
 \midrule
-\texttt{U123\_no\_ctxgate\_d256\_prefix10} (1s) & 4.8304 & 4.8646 & 4.5868 & — & 19.30 & 186.5K & Seed 0 去 $V$ 门控退化 $-0.0070$ \\
+\texttt{U123\_no\_ctxgate} (Seed 0, 低秩) & 4.8304 & 4.8646 & 4.5868 & — & 19.30 & 186.5K & Seed 0 去 $V$ 门控退化 $-0.0070$ \\
+\texttt{U123\_d256\_prefix10} (3s, 低秩) & $4.8355 \pm 0.0136$ & $4.8785 \pm 0.0232$ & $4.5930 \pm 0.0105$ & 110.2M (76.5M) & 23.31 & \textbf{238.0K} & 受 $r=128$ 中频瓶颈拖累 \\
 \texttt{CTRL\_hs\_d256\_prefix10} (3s) & $4.8269 \pm 0.0106$ & $4.8938 \pm 0.0097$ & $4.5982 \pm 0.0118$ & 110.7M (76.9M) & 20.14 & 233.7K & 未剪枝全量哈希基线 \\
-\textbf{\texttt{U123\_d256\_prefix10}} (3s) & $\mathbf{4.8355 \pm 0.0136}$ & $4.8785 \pm 0.0232$ & $\mathbf{4.5930 \pm 0.0105}$ & 110.2M (76.5M) & 23.31 & \textbf{238.0K} & 速度超 \texttt{CTRL\_pruned} +17\% \\
-\textbf{\texttt{CTRL\_hs\_pruned\_d256\_prefix10}} (3s) & $\mathbf{4.8189 \pm 0.0074}$ & $\mathbf{4.8499 \pm 0.0093}$ & $4.5958 \pm 0.0106$ & 110.7M (76.9M) & 22.43 & 202.7K & \textbf{3-Seed 最佳损失，剪枝最稳} \\
+\texttt{CTRL\_hs\_pruned\_d256\_prefix10} (3s) & $\mathbf{4.8189 \pm 0.0074}$ & $4.8499 \pm 0.0093$ & $4.5958 \pm 0.0106$ & 110.7M (76.9M) & 22.43 & 202.7K & \textbf{并列主基线（低方差剪枝对照）} \\
+\texttt{U123\_v2\_initfix} (Seed 1) & 4.8445 & 4.8838 & 4.6044 & 110.2M (76.5M) & 18.01 & — & 仅修初始化收益微弱（$+0.0058$） \\
+\texttt{U123\_v2\_fullmid\_mid2} (Seed 1) & 4.8028 & 4.8361 & 4.5687 & 110.2M (76.4M) & 20.05 & — & 全秩中频 + \texttt{mid>=2}（与 \texttt{fullmid} 接近） \\
+\textbf{\texttt{U123\_v2\_fullmid}} (3s, 全秩中频) & $\mathbf{4.8072 \pm 0.0099}$ & $\mathbf{4.8455 \pm 0.0178}$ & $\mathbf{4.5722 \pm 0.0037}$ & 110.2M (76.4M) & 18.4--24.4 & — & 修复低秩瓶颈；vs 剪枝 $+0.0118$ 不显著 \\
 \bottomrule
 \end{tabular}%
 }
@@ -264,16 +267,16 @@ KKT 条件使最优解自然裂解为高频全秩 $d$（$c \ge c_{\text{hi}}$）
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=0.92\linewidth]{../figs_v5/fig7_bridge.png}
-    \caption{Fig.~7：全词表 $V=50{,}257$（$L=6, d=256$）在 FineWeb $30\text{M}$ tokens 上的 3-Seed 收敛与吞吐前沿。(a) \texttt{U123}（3 seeds）在全训程上稳定领先等算力基线 \texttt{plain\_d256} 与 $2.25\times$ 算力加宽模型 \texttt{plain\_d384}；(b) Batch-16 推理吞吐与 30M 损失联合前沿中，\texttt{CTRL\_hs\_pruned} 占据最低损失端（$4.8189$）而 \texttt{U123} 保持 $+17\%$ 更高吞吐（$238.0\text{K tok/s}$）。}
+    \caption{Fig.~7：全词表 $V=50{,}257$（$L=6, d=256$）在 FineWeb $30\text{M}$ tokens 上的 3-Seed 收敛与吞吐前沿。(a) 修复中频低秩瓶颈后的 \texttt{U123\_v2\_fullmid}（$4.8072 \pm 0.0099$，3 seeds）与并列主基线 \texttt{CTRL\_hs\_pruned}（$4.8189 \pm 0.0074$，3 seeds）均明显领先原始低秩 \texttt{U123} 及 $2.25\times$ 算力 \texttt{plain\_d384}；两者之间差值（$+0.0118, t=+1.25$）尚不显著。(b) 各实测推理配置的质量--吞吐前沿及 \texttt{fullmid} 均分参照线。}
     \label{fig:fig7}
 \end{figure}
 
-对表~\ref{tab:bridge50k} 的四点完整 3-Seed 解读（包含客观边界校正）：
+对表~\ref{tab:bridge50k} 的四点严格 3-Seed 归因总结（含明确降级边界）：
 \begin{enumerate}
-    \item \textbf{跨多种子稳健超越 $2.25\times$ 激活算力的加宽密集主干：} 在无 \texttt{<UNK>} 真实词表下，维持 $d=256$ 低激活算力的 \texttt{U123}（$4.8355 \pm 0.0136$）与 \texttt{CTRL\_hs\_pruned}（$4.8189 \pm 0.0074$）均显著优于参数 $49.2\text{M}$、计算量 $2.25\times$ 的 \texttt{plain\_d384}（$4.8599 \pm 0.0030$）：3-seed 配对下 \texttt{U123} 整体净胜 \textbf{$+0.0243 \pm 0.0106$ nats（$t=+3.96$）}、在成熟桶 \texttt{pc\_100} 上达 \textbf{$+0.0333 \pm 0.0097$（$t=+5.98$）}；\texttt{CTRL\_hs\_pruned} 领先幅度更是达到 $+0.0410$ nats。
-    \item \textbf{“低频彻底剪枝（$k^\star=0$）”的极高统计显著性验证：} 跨 3 个随机种子配对，严格剪除 10\% 前缀计数 $c<10$ 词对的 \texttt{CTRL\_hs\_pruned} 稳定战胜未剪枝 \texttt{CTRL\_hs} $+0.0080 \pm 0.0059$ nats（$t=+2.36$），且在未见/低频桶 \texttt{pc\_0} 上连续三个种子斩获高度一致的去污染净胜：\textbf{$+0.0440 \pm 0.0022$ nats（$t=+34.15$}，分种子 $+0.0431 / +0.0465 / +0.0423$）。
-    \item \textbf{3-Seed 暴露 \texttt{prefix10} 中 \texttt{mid>=1} 的低频污染与 \texttt{ctx\_gate} 的大词表必要性：} 虽然单颗 Seed 0 上 \texttt{U123}（$4.8234$）曾以 $+0.0029$ 略超 \texttt{CTRL\_hs\_pruned}（$4.8263$），但在扩展至 3 seeds 后，\texttt{U123}（$4.8355 \pm 0.0136$）因种子间波动更大而落后 \texttt{CTRL\_hs\_pruned}（$4.8189 \pm 0.0074$）约 $-0.0166 \pm 0.0176$ nats（$t=-1.63$）。机理归因完全明确：在 30M \texttt{prefix10} 配置下，\texttt{mid\_min\_count} 被等比例缩至 $1$（\texttt{mid>=1}），导致 \textbf{965,397 个高方差稀有词对}仍被哈希压缩入低秩中频层而非彻底剪除，拖累了 \texttt{U123} 在 \texttt{pc\_0} 的表现（$-0.0286$ vs \texttt{CTRL\_hs\_pruned}），即使其在成熟桶 \texttt{pc\_100}（$4.5930$ vs $4.5958$）与 \texttt{pc\_1000}（$5.0811$ vs $5.0851$）上依然保有微弱优势。同时，Seed 0 补充消融显示 \texttt{U123\_no\_ctxgate}（$4.8304$）较完整 \texttt{U123}（$4.8234$）退化 $-0.0070$ nats（\texttt{pc\_0} 退化 $-0.0109$），证明上下文 $V$ 门控在真词表高噪声下绝不可省。
-    \item \textbf{吞吐前沿定位与 \texttt{125M} 脚本直接修正式启示：} 在最新 RTX 4070 推理基准中，\texttt{U1\_shared} 保持 \textbf{335.1K tok/s} 与 $12.97\text{ ms}$ 低延迟，\texttt{U123} 以 \textbf{238.0K tok/s} 较 \texttt{CTRL\_hs\_pruned}（202.7K tok/s）快出约 $+17\%$，两者分别占领质量--速度 Pareto 前沿的不同位置；而从 30M 暴露的 \texttt{mid>=1} 隐患可见，正式进入 \texttt{125M × 2.5B} 规模实验前必须锁定提高中频门槛下限（防止 \texttt{--auto-scale-thresh} 把 \texttt{--mid-thresh} 压缩至 $1$），使 \texttt{U123} 在享受跨层共享与吞吐优势的同时彻底免受 $c=1$ 稀疏噪音拖累。
+    \item \textbf{跨多种子稳健大幅超越 $2.25\times$ 算力密集主干（稳健成立）：} 在等激活 FLOPs（$d=256$）条件下，\texttt{U123\_v2\_fullmid}（$4.8072 \pm 0.0099$）与并列主基线 \texttt{CTRL\_hs\_pruned}（$4.8189 \pm 0.0074$）均远超 $2.25\times$ 算力的 \texttt{plain\_d384}（$4.8599 \pm 0.0030$）：\texttt{fullmid} 相对 \texttt{plain\_d384} 在 3 seeds 上净胜 \textbf{$+0.0527 \pm 0.0110$ nats（$t=+8.27$}，分种子 $+0.0538 / +0.0632 / +0.0412$）。
+    \item \textbf{诊断证实“低秩 \texttt{mid} 是瓶颈”而非初始化缩放问题：} 在先验差异最大的 Seed 1（原低秩 \texttt{U123} 为 $4.8503$）上，仅修复 128 倍方差缩水初始化的 \texttt{initfix} 仅微弱改善至 $4.8445$（$+0.0058$），而将 $r=128$ 投影替换为参数中性（$76.39\text{M}$ vs $76.46\text{M}$）的 $50\text{K} \times 512$ 直接全秩中频表后，Seed 1 损失跃升至 $4.7998$（净复原 $+0.0505$），中频桶 \texttt{pc\_10} 从 $4.773$ 收敛至 $4.7079$。全 3-seed 上，\texttt{U123\_v2\_fullmid} 相比原低秩 \texttt{U123} 改进 \textbf{$+0.0284 \pm 0.0193$ nats（$t=+2.54$}，单尾 $p\approx 0.043$、双尾 $p\approx 0.085$，属边缘显著）。
+    \item \textbf{严格降级结论：\texttt{fullmid} 仅追平而未稳胜 \texttt{CTRL\_hs\_pruned}：} 尽管在成熟桶 \texttt{pc\_100} 上 \texttt{fullmid}（$4.5722 \pm 0.0037$）领先 \texttt{CTRL\_hs\_pruned}（$4.5958 \pm 0.0106$）约 $+0.0236 \pm 0.0125$（$t=+3.29$），但在全局验证损失上 3-seed 配对差仅为 \textbf{$+0.0118 \pm 0.0163$（分种子 $+0.0231, +0.0192, -0.0069$，$t=+1.25$，统计不显著）}。这意味着此前仅看前两颗种子时的 $+0.0211$ 属于乐观偏误；在 $30\text{M}$ 短程上，\texttt{fullmid} 仅成功将 \texttt{U123} 从原落后位置拉回至与“纯剪枝+哈希”统计打平水平，当前\textbf{不能主张“精细分层查表优于剪枝哈希”}。
+    \item \textbf{剪枝鲁棒性与门控必要性的独立确证：} \texttt{CTRL\_hs\_pruned} 在未见桶 \texttt{pc\_0} 上跨 3 seeds 对未剪枝 \texttt{CTRL\_hs} 保持 \textbf{$+0.0440 \pm 0.0022$ nats（$t=+34.15$}）的极高显著去污染优势；而 Seed 0 去门控变体 \texttt{U123\_no\_ctxgate}（$4.8304$）较有门控版退化 $-0.0070$，确认大词表必须保留上下文门控，同时无需强加 \texttt{mid>=2}（Seed 1 下 $4.8028$ 与 \texttt{fullmid} $4.7998$ 持平）。
 \end{enumerate}
 
 % ============================================================
@@ -292,12 +295,12 @@ KKT 条件使最优解自然裂解为高频全秩 $d$（$c \ge c_{\text{hi}}$）
     \end{itemize}
     \item \textbf{大尺度机制校准与下游泛化评估：}
     \begin{itemize}
-        \item 基于 30M 3-seed 对照揭露的教训，在启动 $125\text{M}$ 训练前强制保留 Attention 上下文 $V$ 门控（\texttt{ctx\_gate=True}），并提高中频低秩入口门槛下限（修正 \texttt{--auto-scale-thresh} 将 \texttt{--mid-thresh} 压缩至 $1$ 的退化问题），从而兼得跨层低方差收敛与低频彻底去噪；
+        \item 在启动 4 卡 $125\text{M}$ 训练前，必须为 \texttt{train\_125m.py} 添加参数中性的 \texttt{fullmid} 全秩中频选项（按 $125\text{M}$ 词对数比例扩展行数）并强制保留 Attention $V$ 门控；将 \texttt{ctrl\_hs\_pruned} 视为\textbf{并列主基线（co-main baseline）}，以检验在 $2.5\text{B}$ 重碰撞负载（$U(T)/M$ 显著增大）下精确查表相对剪枝哈希究竟拉开优势还是维持打平；
         \item 对 $2.5\text{B}$ 节点最终权重执行零样本下游评测（\texttt{lm-eval}: LAMBADA、HellaSwag、PIQA、ARC-Easy），确认困惑度降幅稳健转化为真实任务准确率。
     \end{itemize}
 \end{enumerate}
 
 \subsection{预注册判定边界}
-在 $2.5\text{B}$ tokens（预期 $>82.7\%$ 评估位置处于 $\ge 100$ 次更新成熟区，远超 $T_{\text{cross}}$ 临界点）下：\textbf{若 \texttt{u123} 在多种子上稳定战胜匹配控制臂 \texttt{ctrl\_hs\_pruned} 与 \texttt{ctrl\_word}，复现“剪枝保护 \texttt{pc\_0}、精确表大胜 \texttt{pc\_100 / pc\_1000}”的分解规律，并在等激活计算量条件下保持对高算力主干 \texttt{plain\_eq\_weights} 的竞争力}，即验证核心假设在现代预训练标准尺度下全面成立；如长程下某些组件边际收敛，亦将按现象学边界如实界定其适用规模区间。
+在 $2.5\text{B}$ tokens（3 seeds 预注册，预期 $>82.7\%$ 评估位置处于 $\ge 100$ 次更新成熟区）下，把 \texttt{fullmid vs ctrl\_hs\_pruned} 的先验预期严谨界定为\textbf{开放性检验（预计差值约 $+0.01 \sim +0.03$ nats，亦存在统计打平可能）}：\textbf{若全秩修正后的 \texttt{u123} 稳健领先等算力 \texttt{plain} / \texttt{word} 并有竞争力对标高算力 \texttt{plain\_eq\_weights}}，则证实核心理论与共享架构在标准规模下成立；至于 \texttt{fullmid} 能否随碰撞负载攀升显著超越 \texttt{ctrl\_hs\_pruned}，将完全依实测结果如实报告，不预先假设“稳赢”。
 
 \end{document}

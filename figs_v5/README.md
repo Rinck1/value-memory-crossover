@@ -14,7 +14,7 @@ Style: Minimalist serif (Times/STIX), open L-frame spines, light solid grid (`#E
 | `fig4_method` | Block D + `upgrade_search` + `extra_ablations` | Quality–memory Pareto frontier and 11-arm Cleveland dot ablations (`U123`, `mid` rank, `res`, `random_tier`, `CTRL_hs_pruned`). |
 | `fig5_heldout` | `p0_results.json` step 2 | Preregistered held-out prediction: 5/5 bucket signs, overall errors `<0.009` nats. |
 | `fig6_gates_beta2` | Block E + Block F | Gates learned from `0.5` emerge naturally vs. flat `RMSNorm`; $\beta_2$ invariance across `0.9–0.999`. |
-| `fig7_bridge` | `v50257_bridge_results.json` + `latency_v50257.json` | 3-seed $V=50{,}257$ (30M) convergence (`U123` beats `2.25x` `plain_d384`) & throughput–quality frontier (`CTRL_hs_pruned`, `U123`, `U1`). |
+| `fig7_bridge` | `v50257_bridge_results.json`, `u123_v2_results.json`, `latency_v50257.json` | 3-seed $V=50{,}257$ (30M) convergence (`U123_v2_fullmid` `4.807` & `CTRL_hs_pruned` `4.819` both beat `2.25x` `plain_d384`, `fullmid` vs pruned `+0.0118` n.s.) & throughput–quality frontier. |
 | `fig8_theory_tests` | `theory_cstar_analysis.json` → `F_three_component_tests` | $M$-shift (`M=6k -> 96k`) delays global crossover while `pc_100` stays positive; 3-seed inter-layer $\rho_{\ell,\ell'}$ stays low (`0.15 -> 0.11`) as depth gain grows. |
 
 ## Reproduce

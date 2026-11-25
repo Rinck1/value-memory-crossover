@@ -91,11 +91,14 @@
   \centering
   \includegraphics[width=\linewidth]{figs_v5/fig7_bridge.pdf}
   \caption{Full-vocabulary ($V=50{,}257$) bridge at $L=6$, $d=256$, 30M
-  tokens (three seeds on \texttt{U123}, \texttt{CTRL\_hs\_pruned},
-  \texttt{CTRL\_hs}, and \texttt{plain\_d384}; error bars show s.d.).
-  (a) Both prefix-pruned models beat the equal-FLOPs baseline and the $2.25\times$
-  compute \texttt{plain\_d384} baseline. (b) Batch-16 inference throughput vs.\
-  loss Pareto frontier.}
+  tokens (three seeds on \texttt{U123\_v2\_fullmid}, \texttt{CTRL\_hs\_pruned},
+  \texttt{U123} low-rank, and \texttt{plain\_d384}; error bars show s.d.).
+  (a) Replacing the low-rank mid bottleneck with full-rank hashed rows
+  (\texttt{U123\_v2\_fullmid}, $4.8072\pm0.0099$) recovers $+0.0284$ ($t=2.54$)
+  over original low-rank \texttt{U123} ($4.8355$) and beats $2.25\times$ compute
+  \texttt{plain\_d384} by $+0.0527$ ($t=8.27$), but is statistically
+  indistinguishable from co-main baseline \texttt{CTRL\_hs\_pruned}
+  ($+0.0118\pm0.0163, t=1.25$). (b) Batch-16 inference throughput vs.\ loss frontier.}
   \label{fig:bridge}
 \end{figure}
 

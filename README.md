@@ -20,8 +20,9 @@ Code, data-processing scripts, and empirical results for a controlled study of l
   - `plain_d384_eqWeights` (`2.25x` active FLOPs, **3s**): `4.8599 ± 0.0030` (`11.73 ms` b1, `252.7k tok/s` b16-infer)
   - `U123_no_ctxgate_d256_prefix10` (Seed 0): `4.8304` (`-0.0070` behind Seed 0 `U123` `4.8234`, showing context gating is required at `V=50,257`)
   - `CTRL_hs_d256_prefix10` (**3s**): `4.8269 ± 0.0106` (`20.14 ms` b1, `233.7k tok/s` b16-infer)
-  - `U123_d256_prefix10` (**3s**): `4.8355 ± 0.0136` (`23.31 ms` b1, **`238.0k tok/s`** b16-infer; paired vs `plain_d384`: `+0.0243 ± 0.0106, t=+3.96`; `pc_100: +0.0333, t=+5.98`)
-  - **`CTRL_hs_pruned_d256_prefix10` (3s):** **`4.8189 ± 0.0074`** (`22.43 ms` b1, `202.7k tok/s` b16-infer; pruning alone gains `+0.0440 ± 0.0022, t=+34.15` over `CTRL_hs` on `pc_0`, while `U123` retains `+17%` higher inference throughput; in `prefix10`, `mid>=1` hashed `965,397` unpruned pairs into `U123`, motivating raising the `mid` floor before `125M x 2.5B`).
+  - `U123_d256_prefix10` (**3s**, low-rank mid): `4.8355 ± 0.0136` (`23.31 ms` b1, **`238.0k tok/s`** b16-infer; paired vs `plain_d384`: `+0.0243 ± 0.0106, t=+3.96`)
+  - **`CTRL_hs_pruned_d256_prefix10` (3s, co-main baseline):** **`4.8189 ± 0.0074`** (`22.43 ms` b1, `202.7k tok/s` b16-infer; pruning alone gains `+0.0440 ± 0.0022, t=+34.15` over `CTRL_hs` on `pc_0`)
+  - **`U123_v2_fullmid` (3s, param-matched full-rank mid `50K x 512`, `76.4M` tab params, `results/u123_v2_results.json`, `docs/U123_V2_RESULT.md`):** **`4.8072 ± 0.0099`** (seeds `4.8033, 4.7998, 4.8184`); beats `plain_d384` by `+0.0527 ± 0.0110` (`t=+8.27`), beats original low-rank `U123` by `+0.0284 ± 0.0193` (`t=+2.54`, marginal two-sided `p≈0.085`; `initfix` recovered only `+0.0058` on seed 1), and is **not significant** vs `CTRL_hs_pruned` (`+0.0118 ± 0.0163, t=+1.25`; per-seed `+0.0231, +0.0192, -0.0069`). Do not claim `fullmid`/maturity routing beats pruned hashing at 30M.
 - **Strict boundaries & caveats:** Equal-total-weights plain models still dominate at `L=4, w=88`; dense Adam outperforms per-row sparse Adam by `0.018` nats (`results/p0_results.json` after `index_add_` fix); maturity gating on a standalone Engram table fails without a 1-gram word fallback.
 
 ---

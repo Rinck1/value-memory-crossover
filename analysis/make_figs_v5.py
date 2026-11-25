@@ -585,8 +585,9 @@ def fig6():
 # ----------------------------------------------------------------------------
 def fig7():
     B = load("v50257_bridge_results.json")
+    V2 = load("u123_v2_results.json")["arms"]
     LAT = load("latency_v50257.json")["arms"]
-    arms = B["arms"]
+    arms = {**B["arms"], **V2}
 
     fig, axes = plt.subplots(1, 2, figsize=(11.0, 3.9))
     fig.subplots_adjust(wspace=0.30)
@@ -605,15 +606,16 @@ def fig7():
         ys = np.array([ck[f"{x:g}M"]["val"] if f"{x:g}M" in ck else ck[f"{x:.1f}M"]["val"] for x in xs])
         return np.array(xs), ys, None, 1
 
-    # (a) Spacious 4-curve convergence (uncluttered!)
+    # (a) Spacious 5-curve convergence showing low-rank fix & parity with CTRL_hs_pruned
     ax = axes[0]
-    core4 = [
+    core = [
         ("plain_d256_eqFLOP",             "Plain $d=256$ (Eq. FLOPs)",            PAL["grey"],   "o", "--"),
-        ("word_d256_last2",               "Word $d=256$ (BoV)",                   PAL["cyan"],   "s", "-"),
         ("plain_d384_eqWeights",          r"Plain $d=384$ ($2.25\times$ FLOPs)",  PAL["amber"],  "D", "--"),
-        ("U123_d256_prefix10",            "U123 (Full, Prefix10)",                PAL["coral"],  "o", "-"),
+        ("U123_d256_prefix10",            "U123 (Low-Rank Mid)",                  PAL["cyan"],   "s", "-"),
+        ("CTRL_hs_pruned_d256_prefix10",  "CTRL_hs_pruned",                       PAL["indigo"], "^", "-."),
+        ("U123_v2_fullmid",               "U123 v2 (FullMid)",                    PAL["coral"],  "o", "-"),
     ]
-    for key, lab, col, mk, ls in core4:
+    for key, lab, col, mk, ls in core:
         if key not in arms:
             continue
         xs, ys, es, ns = get_curve(key)
@@ -626,20 +628,24 @@ def fig7():
     ax.set_xlabel("Training Tokens (M)")
     ax.set_ylabel("Validation Loss (nats)")
     ax.set_xlim(6.5, 31.2)
-    ax.legend(loc="upper right")
+    ax.legend(loc="upper right", fontsize=8.0)
     ax.set_title(r"(a) Scaling Convergence ($V=50{,}257$, 30M)")
 
     # (b) Spacious Throughput vs 30M Quality Frontier
     ax = axes[1]
+    if "U123_v2_fullmid" in arms:
+        _, fm_ys, fm_es, _ = get_curve("U123_v2_fullmid")
+        ax.axhline(float(fm_ys[-1]), color=PAL["coral"], lw=1.0, ls="--",
+                   label=fr"U123 v2 FullMid (3s): ${fm_ys[-1]:.3f}\pm{fm_es[-1]:.3f}$")
     pareto_pts = [
-        ("Plain 256",     "plain_d256_eqFLOP",             PAL["grey"],   "o", (345, 4.982), "right", False),
-        ("Word",          "word_d256_last2",               PAL["cyan"],   "s", (376, 4.918), "right", True),
-        ("MP-VE",         "mp_ve_d256_prefix10",           PAL["teal"],   "D", (332, 4.892), "right", True),
-        ("U1 Shared",     "U1_shared_d512_all6",           PAL["indigo"], "v", (348, 4.844), "left",  True),
-        ("Plain 384",     "plain_d384_eqWeights",          PAL["amber"],  "D", (264, 4.876), "left",  False),
-        ("CTRL_pruned",   "CTRL_hs_pruned_d256_prefix10",  PAL["indigo"], "^", (202, 4.842), "center",True),
-        ("U123 (NoGate)", "U123_no_ctxgate_d256_prefix10", PAL["grey"],   "P", (173, 4.864), "left",  False),
-        ("U123 (Full)",   "U123_d256_prefix10",            PAL["coral"],  "o", (264, 4.828), "left",  True),
+        ("Plain 256",       "plain_d256_eqFLOP",             PAL["grey"],   "o", (345, 4.982), "right", False),
+        ("Word",            "word_d256_last2",               PAL["cyan"],   "s", (376, 4.918), "right", True),
+        ("MP-VE",           "mp_ve_d256_prefix10",           PAL["teal"],   "D", (332, 4.892), "right", True),
+        ("U1 Shared",       "U1_shared_d512_all6",           PAL["indigo"], "v", (348, 4.844), "left",  True),
+        ("Plain 384",       "plain_d384_eqWeights",          PAL["amber"],  "D", (264, 4.876), "left",  False),
+        ("CTRL_pruned",     "CTRL_hs_pruned_d256_prefix10",  PAL["indigo"], "^", (202, 4.844), "center",True),
+        ("U123 (NoGate)",   "U123_no_ctxgate_d256_prefix10", PAL["grey"],   "P", (173, 4.864), "left",  False),
+        ("U123 (Low-Rank)", "U123_d256_prefix10",            PAL["coral"],  "o", (264, 4.832), "left",  True),
     ]
     fx, fy = [], []
     for lab, key, col, mk, (tx, ty), ha, on_f in pareto_pts:
@@ -656,8 +662,8 @@ def fig7():
         else:
             ax.scatter([thr], [loss_v], marker=mk, color=col, s=38,
                        facecolors=col if on_f else "white", edgecolors=col, linewidths=1.2, zorder=4)
-        ax.text(tx, ty, lab, fontsize=8.1, color=col, ha=ha, va="center",
-                fontweight="bold" if lab == "U123 (Full)" else "normal", zorder=5)
+        ax.text(tx, ty, lab, fontsize=8.0, color=col, ha=ha, va="center",
+                fontweight="bold" if "CTRL_pruned" in lab or "U123 (Low-Rank)" in lab else "normal", zorder=5)
         if on_f:
             fx.append(thr)
             fy.append(loss_v)
@@ -668,8 +674,8 @@ def fig7():
     ax.set_xlabel(r"Batch-16 Inference Speed ($\times 10^3$ tok/s $\uparrow$)")
     ax.set_ylabel(r"30M Validation Loss (nats $\downarrow$)")
     ax.set_xlim(165, 405)
-    ax.set_ylim(4.802, 5.002)
-    ax.legend(loc="upper left")
+    ax.set_ylim(4.792, 5.002)
+    ax.legend(loc="upper left", fontsize=7.8)
     ax.set_title("(b) Inference Throughput vs. Quality")
 
     save(fig, "fig7_bridge")
