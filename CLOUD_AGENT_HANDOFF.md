@@ -18,6 +18,20 @@ All files below live in the project root:
    - `math.ceil` step count + forced final milestone evaluation so `2.5B` never gets skipped; chunked cross-entropy (`chunk=2048`) to keep logits VRAM low; post-training `bench_latency()` (`b1_seq_ms`, `b16_infer_tok_s`) written into `metrics_final.json`.
 3. **`run_125m_experiments.sh`** — End-to-end 4-wave orchestration script for a 4-GPU node (or adaptable sequentially on 1 GPU).
 
+### U123 v2 update (2026-11-25) — read before running 125M
+
+The 3-seed 30M bridge showed the original U123 (low-rank mid tier) losing to
+`CTRL_hs_pruned` (4.8355 vs 4.8189). Replacing the low-rank mid bottleneck with
+a **full-rank hashed mid table** (`U123_v2_fullmid`, 50k rows × 512) recovers
+**+0.0211 ± 0.0028** over `CTRL_hs_pruned` (paired seeds 0/1, t=10.9) and
+**+0.0585 ± 0.0067** over `plain_d384_eqWeights` (t=12.4) at 30M tokens. The
+table budget is unchanged (76.39M vs 76.46M).
+
+`train_125m.py` still builds U123 with the low-rank mid tier. **Before renting
+4 GPUs, add a `fullmid` option to the 125M `MemoryBank` (full-rank hashed mid
+rows; scale rows with the token budget), or do not expect the original U123 to
+beat `CTRL_hs_pruned` at 125M.** Details and caveats: `docs/U123_V2_RESULT.md`.
+
 ---
 
 ## 2. Step-by-Step Execution Protocol on the Cloud Server
