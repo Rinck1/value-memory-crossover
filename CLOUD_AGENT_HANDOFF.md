@@ -22,15 +22,23 @@ All files below live in the project root:
 
 The 3-seed 30M bridge showed the original U123 (low-rank mid tier) losing to
 `CTRL_hs_pruned` (4.8355 vs 4.8189). Replacing the low-rank mid bottleneck with
-a **full-rank hashed mid table** (`U123_v2_fullmid`, 50k rows × 512) recovers
-**+0.0211 ± 0.0028** over `CTRL_hs_pruned` (paired seeds 0/1, t=10.9) and
-**+0.0585 ± 0.0067** over `plain_d384_eqWeights` (t=12.4) at 30M tokens. The
-table budget is unchanged (76.39M vs 76.46M).
+a **full-rank hashed mid table** (`U123_v2_fullmid`, 50k rows × 512) gives
+4.8072 ± 0.0099 over 3 seeds. The honest paired result:
+
+- vs `CTRL_hs_pruned`: **+0.0118 ± 0.0163, t=1.25 (not significant)** —
+  per-seed +0.0231, +0.0192, **−0.0069**. Do **not** claim a win over the
+  pruned control; the earlier 2-seed +0.0211 was optimistic.
+- vs original low-rank U123: +0.0284 ± 0.0193, t=2.54 (marginal; one-sided
+  p≈0.043, two-sided p≈0.085). The low-rank bottleneck is real.
+- vs `plain_d384_eqWeights`: +0.0527 ± 0.0110, t=8.27.
+
+The table budget is unchanged (76.39M vs 76.46M).
 
 `train_125m.py` still builds U123 with the low-rank mid tier. **Before renting
 4 GPUs, add a `fullmid` option to the 125M `MemoryBank` (full-rank hashed mid
-rows; scale rows with the token budget), or do not expect the original U123 to
-beat `CTRL_hs_pruned` at 125M.** Details and caveats: `docs/U123_V2_RESULT.md`.
+rows; scale rows with the token budget). Treat `CTRL_hs_pruned` as a co-main
+baseline, not a straw man: at 30M it is statistically indistinguishable from
+fullmid.** Details and caveats: `docs/U123_V2_RESULT.md`.
 
 ---
 
