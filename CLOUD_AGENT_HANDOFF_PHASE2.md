@@ -40,6 +40,16 @@ All three missing arms are now implemented directly in [train_125m.py](file:///C
    - Top words covering `80%` of prefix tokens get full-width `d` (`768`) rows; the tail vocabulary gets `d // 4` (`192`) rows + a learned `Linear(d//4, d, bias=False)` projection (`ve_word_proj`, optimized by Muon). Tests adaptive per-word capacity allocation (Baevski & Auli-style) against `word` and `u123`.
 3. **`--arm u123_no3g`**:
    - Identical to `u123` (`tiered` exact `hi` + `mid`, shared across all 12 layers, context gate + residual injection + pre-head readout) with `use_3g=False`. Directly isolates the causal marginal contribution of exact 3-grams (`u123` vs `u123_no3g` vs `u1`) at `125M × 2.5B`.
+4. **`--arm uniform_mgram` (Value-Side Over-Tokenized Multi-Gram Control)**:
+   - Orthogonal control for *Over-Tokenized Transformer* (Huang et al., ICML 2025). Instead of altering the input tokenizer/embedding side, it pools both **2-gram and 3-gram** hashes uniformly (`use_hash_3g=True`, no frequency tiering, no pruning, no exact keys) into the exact same `pair_rows` table (`268.9M` table params vs `u123` `275.3M`) and identical `184.2M` adapter body — directly answering whether frequency-partitioned exact allocation beats uniform multi-gram allocation at matched value-side memory budget. (Also supported in 30M `experiments/run_v50257_multiseed.py` as `uniform_mgram_d256_prefix10`.)
+
+### Collision-Load Quantitative Law (`results/collision_law.json`, `figs_v5/fig9_collision_law.pdf`)
+
+Replacing the dropped $c^\star(d)$ slope claim, controlled $M$-sweep data ($V=6{,}000$, $M\in\{6\text{k},24\text{k},96\text{k}\}$) establishes a clean two-parameter log-linear collision-load law:
+$$\Delta(U(T), M) \approx a \ln(U(T)/M) + b$$
+- **Vs `CTRL_hs`**: $a=0.00992, b=-0.01538, R^2=0.963$, boundary $M^\star(T)\approx 0.212\,U(T)$ (`30M` pred `+0.0236` vs obs `+0.0197`; `125M×2.5B` pred `+0.0321` vs obs `+0.0338`; 5-pt joint $R^2=0.957$).
+- **Vs `CTRL_hs_pruned`**: $a=0.00707, b=-0.01261, R^2=0.982$, boundary $M^\star(T)\approx 0.168\,U(T)$ (`30M` pred `+0.0151` vs obs `+0.0118`; `125M×2.5B` pred `+0.0212` vs obs `+0.0298`; 5-pt joint $R^2=0.878$).
+- **Preregistered `350M × 5B` prediction (`U(5B) ≈ 195.6M, M=2M`)**: predicts `+0.0301` nats over `CTRL_hs` and **`+0.0198`–`+0.0225` nats** (or `~+0.028` with exact `mid`) over `ctrl_hs_pruned`.
 
 ---
 
@@ -73,6 +83,7 @@ Plus **zero-extra-code FineWeb Diagnostic (`--verify-val-shard`)**:
 | **P1** | **`ctrl_word`** (seeds `1, 2`) | 2 × 2.5B | Cloud | 8 | 3-seed proof that adapter compute alone (`181.8M` body) adds `~0` at `2.5B`. |
 | **P1** | **`mp_ve`** (last-2 shared tiered, no gate/3g) | 3 × 2.5B | Cloud | 30 | Connects `V=6,000` `MP-VE` prototype to `125M` `u1` / `u123` scaling path. |
 | **P1** | **FineWeb Bucket Top-1 Accuracy** (`pc_0/2/3/4`) | 1 pass/ckpt | **Local (\$0)** or Cloud | <1 | Shows accuracy + loss decomposition across sighting tiers. |
+| **P1** | **`uniform_mgram`** (`RUN_OT_CONTROL=1`, uniform unpruned 2g+3g hash) | 3 × 2.5B | Cloud | 15 | Value-side Over-Tokenized control: frequency partitioning > uniform pool. |
 | **P2** | **`u123_no3g`** (3 seeds, `RUN_P2_ABLATIONS=1`) | 3 × 2.5B | Cloud | 15–18 | Isolates exact 3-gram gain (`u123` vs `u123_no3g` vs `u1`) at `125M`. |
 
 *(Total if running everything including P2 on 4×H20/4090: ~200–250 GPU·h ≈ 2.5–3 days. Tight budget `P0`-only run: `RUN_P2_ABLATIONS=0` plus skipping `mp_ve` cuts ~60 GPU·h.)*

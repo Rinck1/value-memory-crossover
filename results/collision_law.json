@@ -1,0 +1,100 @@
+{
+  "heaps_law_fineweb": {
+    "beta": 0.71368,
+    "c": 23.413,
+    "log_log_r2": 0.999013,
+    "U_30M": 5078209,
+    "U_2_5B": 119277299,
+    "U_5_0B": 195612435
+  },
+  "v6000_in_sample_points": [
+    {
+      "label": "V=6k, M=6k",
+      "M": 6000,
+      "U": 411030,
+      "U_over_M": 68.505,
+      "ln_U_over_M": 4.2269,
+      "lead_vs_ctrl_hs": 0.025,
+      "lead_vs_ctrl_hs_pruned": 0.0165
+    },
+    {
+      "label": "V=6k, M=24k",
+      "M": 24000,
+      "U": 411030,
+      "U_over_M": 17.126,
+      "ln_U_over_M": 2.8406,
+      "lead_vs_ctrl_hs": 0.0159,
+      "lead_vs_ctrl_hs_pruned": 0.009
+    },
+    {
+      "label": "V=6k, M=96k",
+      "M": 96000,
+      "U": 411030,
+      "U_over_M": 4.282,
+      "ln_U_over_M": 1.4543,
+      "lead_vs_ctrl_hs": -0.0025,
+      "lead_vs_ctrl_hs_pruned": -0.0031
+    }
+  ],
+  "fits": {
+    "v6k_3pt_vs_ctrl_hs": {
+      "a": 0.009919,
+      "b": -0.015375,
+      "r2": 0.96328,
+      "u_over_m_star": 4.712,
+      "m_star_coeff": 0.21223
+    },
+    "v6k_3pt_vs_ctrl_hs_pruned": {
+      "a": 0.007069,
+      "b": -0.012614,
+      "r2": 0.98197,
+      "u_over_m_star": 5.956,
+      "m_star_coeff": 0.1679
+    },
+    "joint_5pt_vs_ctrl_hs": {
+      "a": 0.009997,
+      "b": -0.016053,
+      "r2": 0.95676,
+      "u_over_m_star": 4.982,
+      "m_star_coeff": 0.20072
+    },
+    "joint_5pt_vs_ctrl_hs_pruned": {
+      "a": 0.008494,
+      "b": -0.016468,
+      "r2": 0.87829,
+      "u_over_m_star": 6.95,
+      "m_star_coeff": 0.14388
+    }
+  },
+  "cross_scale_predictions": {
+    "30M_M100k": {
+      "U": 5078209,
+      "M": 100000,
+      "U_over_M": 50.78,
+      "ln_U_over_M": 3.9275,
+      "pred_3pt_vs_ctrl_hs": 0.0236,
+      "obs_vs_ctrl_hs": 0.0197,
+      "pred_3pt_vs_pruned": 0.0151,
+      "obs_vs_pruned": 0.0118
+    },
+    "125M_2_5B_M1M": {
+      "U": 119277299,
+      "M": 1000000,
+      "U_over_M": 119.28,
+      "ln_U_over_M": 4.7815,
+      "pred_3pt_vs_ctrl_hs": 0.0321,
+      "obs_vs_ctrl_hs": 0.0338,
+      "pred_3pt_vs_pruned": 0.0212,
+      "obs_vs_pruned": 0.0298
+    },
+    "350M_5B_M2M_preregistered": {
+      "U": 195612435,
+      "M": 2000000,
+      "U_over_M": 97.81,
+      "ln_U_over_M": 4.583,
+      "pred_3pt_vs_ctrl_hs": 0.0301,
+      "pred_3pt_vs_pruned": 0.0198,
+      "pred_5pt_vs_pruned": 0.0225
+    }
+  }
+}

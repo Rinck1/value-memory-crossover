@@ -759,6 +759,97 @@ def fig8_theory():
     save(fig, "fig8_theory_tests")
 
 
+# ----------------------------------------------------------------------------
+# Fig. 9  Collision-Load Scaling Law: Delta ~ a * ln(U(T)/M) + b & M*(T)
+# ----------------------------------------------------------------------------
+def fig9_collision_law():
+    cl = load("collision_law.json")
+    pts = cl["v6000_in_sample_points"]
+    f_hs = cl["fits"]["v6k_3pt_vs_ctrl_hs"]
+    f_pr = cl["fits"]["v6k_3pt_vs_ctrl_hs_pruned"]
+    cs = cl["cross_scale_predictions"]
+    heaps = cl["heaps_law_fineweb"]
+
+    fig, axes = plt.subplots(1, 2, figsize=(11.2, 4.0))
+    fig.subplots_adjust(wspace=0.28)
+
+    # Panel (a): Delta vs ln(U(T)/M)
+    ax = axes[0]
+    x_in = np.array([p["ln_U_over_M"] for p in pts])
+    y_hs = np.array([p["lead_vs_ctrl_hs"] for p in pts])
+    y_pr = np.array([p["lead_vs_ctrl_hs_pruned"] for p in pts])
+
+    xg = np.linspace(1.1, 5.15, 160)
+    ax.plot(xg, f_hs["a"] * xg + f_hs["b"], color=PAL["indigo"], lw=1.6,
+            label=f"3-pt fit vs CTRL_hs ($R^2={f_hs['r2']:.3f}$)")
+    ax.plot(xg, f_pr["a"] * xg + f_pr["b"], color=PAL["coral"], lw=1.6, ls="--",
+            label=f"3-pt fit vs pruned ($R^2={f_pr['r2']:.3f}$)")
+
+    ax.scatter(x_in, y_hs, color=PAL["indigo"], s=42, zorder=5, label=r"$V=6\text{k}$ $M$-sweep (unpruned)")
+    ax.scatter(x_in, y_pr, color=PAL["coral"], marker="s", s=40, zorder=5, label=r"$V=6\text{k}$ $M$-sweep (pruned)")
+
+    # Out-of-sample 30M and 125M stars
+    x_oos = [cs["30M_M100k"]["ln_U_over_M"], cs["125M_2_5B_M1M"]["ln_U_over_M"]]
+    y_oos_hs = [cs["30M_M100k"]["obs_vs_ctrl_hs"], cs["125M_2_5B_M1M"]["obs_vs_ctrl_hs"]]
+    y_oos_pr = [cs["30M_M100k"]["obs_vs_pruned"], cs["125M_2_5B_M1M"]["obs_vs_pruned"]]
+    ax.scatter(x_oos, y_oos_hs, color=PAL["indigo"], marker="*", s=130, edgecolor="black", lw=0.6, zorder=6,
+               label="Out-of-sample (30M & 125M, unpruned)")
+    ax.scatter(x_oos, y_oos_pr, color=PAL["coral"], marker="*", s=130, edgecolor="black", lw=0.6, zorder=6,
+               label="Out-of-sample (30M & 125M, pruned)")
+
+    # Preregistered 350M point marker (prediction range)
+    x_350 = cs["350M_5B_M2M_preregistered"]["ln_U_over_M"]
+    y_350_lo = cs["350M_5B_M2M_preregistered"]["pred_3pt_vs_pruned"]
+    y_350_hi = cs["350M_5B_M2M_preregistered"]["pred_3pt_vs_ctrl_hs"]
+    ax.vlines(x_350, y_350_lo, y_350_hi, color=PAL["teal"], lw=2.2, ls=":", zorder=4)
+    ax.scatter([x_350], [cs["350M_5B_M2M_preregistered"]["pred_5pt_vs_pruned"]],
+               color=PAL["teal"], marker="D", s=46, zorder=6, label="Preregistered 350M×5B target")
+
+    ax.axhline(0.0, color="#6B7280", lw=0.9, ls="--")
+    ax.annotate("30M", (x_oos[0], y_oos_pr[0]), textcoords="offset points", xytext=(-18, -14), fontsize=8)
+    ax.annotate("125M×2.5B", (x_oos[1], y_oos_hs[1]), textcoords="offset points", xytext=(-44, 7), fontsize=8)
+    ax.annotate("350M pred", (x_350, y_350_lo), textcoords="offset points", xytext=(6, -12), fontsize=8, color=PAL["teal"])
+
+    ax.set_xlabel(r"Log Collision Load $\ln(U(T)/M)$")
+    ax.set_ylabel(r"Hash $-$ Tiered Exact Lead (nats)")
+    ax.set_ylim(-0.008, 0.042)
+    ax.legend(loc="upper left", fontsize=7.0, ncol=1)
+    ax.set_title(r"(a) Collision-Load Scaling Law $\Delta \approx a \ln(U/M) + b$")
+
+    # Panel (b): Phase Boundary M*(T) = (M/U)* U(T) on log-log scale
+    ax = axes[1]
+    u_grid = np.logspace(5.2, 8.6, 120)
+    mstar_hs = f_hs["m_star_coeff"] * u_grid
+    mstar_pr = f_pr["m_star_coeff"] * u_grid
+    ax.plot(u_grid, mstar_pr, color=PAL["coral"], lw=1.6, label=fr"Pruned boundary $M^\star \approx {f_pr['m_star_coeff']:.2f}\,U(T)$")
+    ax.plot(u_grid, mstar_hs, color=PAL["indigo"], lw=1.4, ls="--", label=fr"Unpruned boundary $M^\star \approx {f_hs['m_star_coeff']:.2f}\,U(T)$")
+    ax.fill_between(u_grid, 1e3, mstar_pr, color=PAL["coral"], alpha=0.08, label="High-collision: exact lookup wins")
+
+    # Mark V=6k (M=6k,24k,96k), 30M (M=100k), 125M (M=1M), 350M (M=2M)
+    for m, lbl in [(6000, "6k"), (24000, "24k"), (96000, "96k")]:
+        col = PAL["grey"] if m == 96000 else PAL["coral"]
+        ax.scatter([411030], [m], color=col, s=36, zorder=5)
+        ax.annotate(f"M={lbl}", (411030, m), textcoords="offset points", xytext=(7, 2 if m == 96000 else -3), fontsize=7.5)
+    for u_val, m_val, lbl, col in [
+        (cs["30M_M100k"]["U"], 100_000, "30M (M=100k)", PAL["indigo"]),
+        (cs["125M_2_5B_M1M"]["U"], 1_000_000, "125M (M=1M)", PAL["coral"]),
+        (cs["350M_5B_M2M_preregistered"]["U"], 2_000_000, "350M (M=2M)", PAL["teal"]),
+    ]:
+        ax.scatter([u_val], [m_val], color=col, marker="*", s=110, edgecolor="black", lw=0.5, zorder=6)
+        ax.annotate(lbl, (u_val, m_val), textcoords="offset points", xytext=(-58, 8), fontsize=7.5)
+
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    ax.set_xlim(2e5, 4e8)
+    ax.set_ylim(4e3, 6e7)
+    ax.set_xlabel(fr"Cumulative Unique Pairs $U(T)$ (FineWeb $\beta={heaps['beta']:.2f}$)")
+    ax.set_ylabel("Hash Table Capacity $M$ (rows)")
+    ax.legend(loc="upper left", fontsize=7.2)
+    ax.set_title(r"(b) Collision Phase Boundary $M^\star(T)$")
+
+    save(fig, "fig9_collision_law")
+
+
 if __name__ == "__main__":
     fig0_architecture()
     fig1()
@@ -769,3 +860,4 @@ if __name__ == "__main__":
     fig6()
     fig7()
     fig8_theory()
+    fig9_collision_law()

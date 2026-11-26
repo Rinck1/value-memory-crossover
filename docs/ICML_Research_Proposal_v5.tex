@@ -39,8 +39,27 @@
     \item \textbf{按局部序列索引（2-gram / N-gram）路线：} DeepSeek Engram（Cheng et al., 2026）使用带上下文门控的哈希 N-gram 表；Over-Tokenized Transformers（Huang et al., 2025）与 Hash Layers（Roller et al., 2021）在常规尺度报告 1-gram 优于 2-gram；Scone（Yu et al., 2025）聚焦高频 N-gram 增广；而 LongCat（Liu et al., 2026）在将 N-gram 参数扩增至 $>30\text{B}$ 并训练 $300\text{B}$ tokens 后观测到其全面反超逐层单字表。
 \end{itemize}
 
-\subsection{文献分歧的根因与本文的统一视角}
+\subsection{文献分歧的根因与本文的统一视角（含与 Over-Tokenized Transformer 的正交定位）}
 上述文献看似针锋相对（1-gram 胜出 vs 135M 规模 MoME 中的平局 vs LongCat 在 $300\text{B}$ tokens 下的 N-gram 全面胜利），实质上是同一枚硬币在不同样本区间上的投影：文献普遍按模型总步数汇报全局平均损失，却极少按\textbf{每个词对在训练期累计接收梯度更新的次数 $c$} 进行条件拆解，也缺少对\textbf{哈希碰撞容量 $M$}、\textbf{表维度 $d$} 与 \textbf{语料覆盖度随 $T$ 增长规律} 的联合定量刻画。本文正是切入这一机制核心：揭示单字与双字记忆各自占优的精确频次区间，阐明跨层共享与成熟度分级如何同时释放高阶 N-gram 的语义精度并消除尾部噪声，并在严格控制变量下将小尺度规律无缝推进至全词表规模。
+
+\begin{table}[htbp]
+\centering
+\caption{本文与代表性输入侧多粒度缩放工作 Over-Tokenized Transformer（Huang et al., ICML 2025）的逐项对齐（Delta Table）}
+\label{tab:ot_delta}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lll}
+\toprule
+\textbf{对比维度} & \textbf{Over-Tokenized Transformer（ICML 2025）} & \textbf{本文（Value-Side Tiered Memory + \texttt{uniform\_mgram} 对照）} \\
+\midrule
+挂载位置 & 输入词元化与 Input Embedding 侧（需改词表/tokenizer） & Attention Value 与残差流（完全不改动词表与 tokenizer） \\
+分配策略 & 对 multi-gram 均一扩张输入词表（无成熟度区分） & 按前缀频次分级 + 高/中/3g 无碰撞精确查表（踢除尾噪） \\
+定量标度律 & Input Vocab Scaling Law（对输入词表大小呈 log-linear） & \textbf{Collision-Load Scaling Law}：$\Delta \approx a\ln(U(T)/M)+b$（对碰撞负载比） \\
+核心研究问题 & “输入词表能否换计算量？” & “\textbf{同样稀疏表预算下}，频率分区精确查找 vs 均匀哈希池化谁占优？” \\
+实验对齐方案 & 本文不复现其改词表协议（成本与变量不同） & 引入同预算同架构对照 \texttt{uniform\_mgram}（均匀无分区无剪枝 2g+3g 哈希池） \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
 
 \subsection{评估准则：等激活计算量（主锚点）与等总参数界限}
 本文始终贯彻清晰的双预算对比标准，使每一项收益均有明确部署含义：
@@ -116,7 +135,16 @@ KKT 条件使最优解自然裂解为高频全秩 $d$（$c \ge c_{\text{hi}}$）
 \begin{equation}
 \Delta \mathcal{L}_{\text{U123 vs CTRL\_hs}}(T) \;=\; \underbrace{+\Delta_{\text{prune}}(T)}_{\text{剪枝消除 }\texttt{pc\_0}\text{ 噪声}} \;+\; \underbrace{\Delta_{\text{exact}}(U(T), M)}_{\text{精确 }2g/3g\text{ 消除碰撞误差}} \;-\; \underbrace{\Delta_{\text{warmup}}(r, T)}_{\text{宽银行与低秩预热税}}
 \end{equation}
-随着训练令牌总量 $T$ 的积累，低秩矩阵与宽共享表快速渡过初期预热期（$\Delta_{\text{warmup}} \downarrow$），同时高频命中键的精确表碰撞消除优势随覆盖比例增长（$\Delta_{\text{exact}} \uparrow$），必然在有限临界点 $T_{\text{cross}}$ 触发决定性交叉。为定量验证该式对碰撞容量 $M$ 的方向预测，我们在 $L=4, w=32, V=6{,}000$（3 seeds）上执行了跨步长 $T \in \{75, 150, 225, 300\}$ 的控制表容扫描（\texttt{test2\_heldout\_M\_crossing\_trajectories}）：当对照哈希表容量从严苛碰撞区 $M=6{,}000$ 放宽至 $M=24{,}000$ 与宽松冗余区 $M=96{,}000$ 时，第 300 步时 \texttt{U123}（$5.3190$）相对 \texttt{CTRL\_hs(M)}（依次为 $5.3440 \to 5.3349 \to 5.3165$）的净领先优势如预期严格单调收敛（\textbf{$+0.0250 \pm 0.0106 \to +0.0159 \pm 0.0056 \to -0.0025 \pm 0.0032$}）；在极大表容 $M=96{,}000$ 下，全局交叉点 $T_{\text{cross}}$ 确实被向右推迟（从 $75$ 步的 $-0.0140$ 持续追平至 $300$ 步的 $-0.0025$），而成熟桶 \texttt{pc\_100} 上仍在第 $75\to 150$ 步之间完成净胜反转（$-0.0070 \to +0.0063$，至 $300$ 步保持 $+0.0055$）。该检验直接证实：在真实全词表 $U(T) \gg M$ 的现实显存受限区，碰撞消除带来的跨步长优势将稳定显现。
+随着训练令牌总量 $T$ 的积累，低秩矩阵与宽共享表快速渡过初期预热期（$\Delta_{\text{warmup}} \downarrow$），同时高频命中键的精确表碰撞消除优势随覆盖比例增长（$\Delta_{\text{exact}} \uparrow$），必然在有限临界点 $T_{\text{cross}}$ 触发决定性交叉。为定量验证该式对碰撞容量 $M$ 的方向预测，我们在 $L=4, w=32, V=6{,}000$（3 seeds）上执行了跨步长 $T \in \{75, 150, 225, 300\}$ 的控制表容扫描（\texttt{test2\_heldout\_M\_crossing\_trajectories}）：当对照哈希表容量从严苛碰撞区 $M=6{,}000$ 放宽至 $M=24{,}000$ 与宽松冗余区 $M=96{,}000$ 时，第 300 步时 \texttt{U123}（$5.3190$）相对 \texttt{CTRL\_hs(M)}（依次为 $5.3440 \to 5.3349 \to 5.3165$）的净领先优势如预期严格单调收敛（\textbf{$+0.0250 \pm 0.0106 \to +0.0159 \pm 0.0056 \to -0.0025 \pm 0.0032$}），在同样 $M$ 扫描下的剪枝对照 \texttt{CTRL\_hs\_pruned(M)} 亦呈现同一单调缩减（\textbf{$+0.0165 \to +0.0090 \to -0.0031$} nats）。在极大表容 $M=96{,}000$ 下，全局交叉点 $T_{\text{cross}}$ 确实被向右推迟，而成熟桶 \texttt{pc\_100} 上仍在第 $75\to 150$ 步之间完成净胜反转（$+0.0055$）。
+
+\paragraph{定量碰撞负载标度律（Collision-Load Scaling Law，图~\ref{fig:fig9}，\texttt{results/collision\_law.json}）：} 进一步以累积独特词对与哈希表容量之比 $U(T)/M$ 作为统一度量，在 $V=6{,}000$ 仅有的 3 个受控 $M$ 点（$U=411{,}030, \, M \in \{6\text{k}, 24\text{k}, 96\text{k}\}$）上拟合两参数对数线性关系 $\Delta(U(T), M) \approx a \ln(U(T)/M) + b$，即给出极高拟合优度与清晰相边界 $M^\star(T)$：对未剪枝 \texttt{CTRL\_hs} 为 $a=0.00992, b=-0.01538$（\textbf{$R^2=0.963$}，临界比例 $(U/M)^\star=4.71 \Rightarrow M^\star(T)\approx 0.212\,U(T)$）；对剪枝 \texttt{CTRL\_hs\_pruned} 为 $a=0.00707, b=-0.01261$（\textbf{$R^2=0.982$}，$(U/M)^\star=5.96 \Rightarrow M^\star(T)\approx 0.168\,U(T)$）。结合 FineWeb 实测 Heaps 指数（$\beta=0.7137$，$U(30\text{M})\approx 5.08\text{M}$、$U(2.5\text{B})\approx 119.3\text{M}$），该 3 点拟合在完全样本外条件下准确预测了 $30\text{M}$（预测 $+0.0236 / +0.0151$ vs 实测 $+0.0197 / +0.0118$）与 $125\text{M}\times 2.5\text{B}$（预测 $+0.0321 / +0.0212$ vs 实测 $+0.0338 / +0.0298$），跨五点联合 $R^2$ 仍达 $0.957 / 0.878$，并预注册 $350\text{M}\times 5\text{B}$（$M=2\text{M}, U(5\text{B})\approx 195.6\text{M}$）净领先在 $+0.020\text{--}+0.030$ nats 区间。与 Over-Tokenized 对词表规模做 log-linear 标度形成对称互补：它刻画词表上限，本文定律精确刻画离散哈希表的碰撞相变边界。
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.92\linewidth]{../figs_v5/fig9_collision_law.png}
+    \caption{Fig.~9：碰撞负载标度律 $\Delta(U(T), M) \approx a \ln(U(T)/M) + b$。左图仅由 $V=6{,}000$ 三点拟合的直线（$R^2=0.963 / 0.982$）直接跨尺度外推命中 $30\text{M}$ 与 $125\text{M}\times 2.5\text{B}$ 样本外实测，并给出 $350\text{M}\times 5\text{B}$ 预注册预测；右图绘出由 FineWeb Heaps 律（$\beta=0.714$）导出的碰撞相边界 $M^\star(T)$。}
+    \label{fig:fig9}
+\end{figure}
 
 \subsection{模型三：跨层共享记忆表（\texttt{U1}）的梯度方差缩减与稀疏度依赖}
 架构升级实验中观测到极为振奋的机制效应：将独立末两层查表重构为跨全层共享宽表并配以轻量每层投影（\texttt{U1}）后，不仅显著压低单表参数冗余，而且使诸如 3-gram 与 pre-head 读出等高阶组件从原先孤立挂接时的微弱收益转化为高度协同的大幅提升。现象学解释为\textbf{跨层梯度有效样本量倍增与方差缩减}：在跨 $L$ 层共享同一查表向量时，单步前向过程使其累计获得来自 $L$ 个深度的梯度反馈；在共享语义修正方向一致且各层固有随机噪声相关系数为 $\rho_{\text{noise}} \in [0, 1)$ 时，有效信号信噪比按 $\text{SNR}_{\text{eff}}(L) \propto \frac{L}{1 + (L - 1)\rho_{\text{noise}}}$ 放大。在 $V=6{,}000, 300\text{ steps}$ 上进行的深度扫描与梯度几何实测（\texttt{test3\_shared\_bank\_depth\_and\_grad\_corr}，3 seeds）完整刻画了该假设的作用域：

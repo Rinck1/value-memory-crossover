@@ -21,6 +21,7 @@ u123_no3g          u123 without exact 3-gram tier (isolates 3-gram contribution)
 ctrl_word          u123 dense architecture with ONLY word bank (controls for dense adapter FLOPs)
 ctrl_hs            u123 dense architecture with hashed pair table (no maturity pruning, no exact 3g)
 ctrl_hs_pruned     ctrl_hs with <mid_thresh low-count pairs masked (separates pruning vs exact de-collision)
+uniform_mgram      value-side Over-Tokenized control: uniform unpruned, untiered 2g+3g hash pool at matched table budget
 engram             multi-head hashed 2/3-gram table + K/V proj + context gate + causal depthwise conv
 xgram              frequency-split word value table (top 80% token cover at d_mem, rest at d_mem/4 + proj)
 """
@@ -320,7 +321,8 @@ class MemoryBank(nn.Module):
                  pair_rows: int = 1_000_000, gate_mode: str = "tier",
                  mid_rank: int | None = None,
                  xgram_hi_words: np.ndarray | None = None,
-                 n_w_hi: int | None = None):
+                 n_w_hi: int | None = None,
+                 use_hash_3g: bool = False):
         super().__init__()
         self.V = V
         self.d_mem = d_mem
@@ -329,6 +331,7 @@ class MemoryBank(nn.Module):
         self.n_hi, self.n_mid, self.n_3g = n_hi, n_mid, n_3g
         self.pair_rows = pair_rows
         self.mid_rank = mid_rank or max(4, d_mem // 4)
+        self.use_hash_3g = use_hash_3g
 
         self.ve_word = None
         self.ve_word_hi = self.ve_word_lo = self.ve_word_proj = None
@@ -407,6 +410,10 @@ class MemoryBank(nn.Module):
             p1 = F.pad(ids, (1, 0), value=self.V)[:, :-1]
             hash_id = (p1 * 1000003 + ids) % self.pair_rows
             p = self.ve_pair[hash_id]
+            if self.use_hash_3g:
+                p2 = F.pad(ids, (2, 0), value=self.V)[:, :-2]
+                h3 = (p2 * 998244353 + p1 * 1000003 + ids + 17) % self.pair_rows
+                p = p + self.ve_pair[h3]
         else:
             p = self.ve_hi[hi_id] * (hi_id > 0).unsqueeze(-1).to(w.dtype)
             if self.n_mid > 0 and mid_id is not None:
@@ -569,7 +576,8 @@ class Model(nn.Module):
                  pre_head_mem: bool = False, share_bank_across_layers: bool = False,
                  use_engram: bool = False,
                  xgram_hi_words: np.ndarray | None = None,
-                 n_w_hi: int | None = None):
+                 n_w_hi: int | None = None,
+                 use_hash_3g: bool = False):
         super().__init__()
         self.V, self.d = V, d
         self.arm = arm
@@ -588,14 +596,14 @@ class Model(nn.Module):
         self.bank = None
         if self.shared:
             self.bank = MemoryBank(V, d_mem, memory_mode, n_hi, n_mid, n_3g, pair_rows, gate_mode,
-                                   xgram_hi_words=xgram_hi_words, n_w_hi=n_w_hi)
+                                   xgram_hi_words=xgram_hi_words, n_w_hi=n_w_hi, use_hash_3g=use_hash_3g)
         self.blocks = nn.ModuleList()
         for i in range(layers):
             active = i in self.ve_layers
             local = None
             if active and not self.shared:
                 local = MemoryBank(V, d_mem, memory_mode, n_hi, n_mid, n_3g, pair_rows, gate_mode,
-                                   xgram_hi_words=xgram_hi_words, n_w_hi=n_w_hi)
+                                   xgram_hi_words=xgram_hi_words, n_w_hi=n_w_hi, use_hash_3g=use_hash_3g)
             self.blocks.append(Block(
                 d, heads, rope,
                 memory=local,
@@ -695,6 +703,11 @@ def arm_config(arm: str, layers: int, d: int, d_mem: int):
     if arm == "ctrl_hs_pruned":
         return dict(ve_layers=all_layers, memory_mode="hash", shared=True, d_mem=d_mem,
                     gate_mode="tier", ctx_gate=True, inject_res=True, prehead=True, use_3g=False, use_engram=False)
+    if arm == "uniform_mgram":
+        # Value-side Over-Tokenized multi-gram control: uniform unpruned, untiered 2g+3g hash pool
+        return dict(ve_layers=all_layers, memory_mode="hash", shared=True, d_mem=d_mem,
+                    gate_mode="none", ctx_gate=True, inject_res=True, prehead=True,
+                    use_3g=False, use_hash_3g=True, use_engram=False)
     raise ValueError(f"Unknown arm: {arm}")
 
 
@@ -862,7 +875,7 @@ def main():
     p.add_argument("--arm", default="u123",
                    choices=["plain", "plain_eq_weights", "word", "xgram", "engram",
                             "hard_stack", "mp_ve", "u1", "u123", "u123_no3g",
-                            "ctrl_word", "ctrl_hs", "ctrl_hs_pruned"])
+                            "ctrl_word", "ctrl_hs", "ctrl_hs_pruned", "uniform_mgram"])
     p.add_argument("--data-dir", default="data")
     p.add_argument("--val-shard", default=None)
     p.add_argument("--out", default="runs/exp")
@@ -984,6 +997,7 @@ def main():
         share_bank_across_layers=cfg["shared"],
         use_engram=cfg.get("use_engram", False),
         xgram_hi_words=cd.xgram_hi_words,
+        use_hash_3g=cfg.get("use_hash_3g", False),
     ).to(device)
 
     nparam = sum(p.numel() for p in model.parameters())

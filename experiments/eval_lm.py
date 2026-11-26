@@ -107,6 +107,7 @@ def build_model_from_checkpoint(checkpoint: str, countdata: str, max_seq: int | 
         use_ctx_gate=cfg["ctx_gate"], inject_res=cfg["inject_res"],
         pre_head_mem=cfg["prehead"], share_bank_across_layers=cfg["shared"],
         use_engram=cfg.get("use_engram", False), n_w_hi=n_w_hi,
+        use_hash_3g=cfg.get("use_hash_3g", False),
     )
     missing, unexpected = model.load_state_dict(state, strict=False)
     if missing or unexpected:

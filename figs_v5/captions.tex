@@ -114,3 +114,16 @@
   paired with 3-seed inter-layer gradient cosine $\rho_{\ell,\ell'}$ ($0.15\to 0.11$).}
   \label{fig:theory}
 \end{figure}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{figs_v5/fig9_collision_law.pdf}
+  \caption{Collision-load scaling law $\Delta(U(T),M) \approx a \ln(U(T)/M) + b$.
+  (a) Fit strictly on the three $V=6{,}000$ $M$-sweep points ($M\in\{6\text{k},24\text{k},96\text{k}\}$;
+  $R^2=0.963$ unpruned, $R^2=0.982$ pruned) accurately predicts out-of-sample
+  30M ($M=100\text{k}$) and 125M$\times$2.5B ($M=1\text{M}$) gains, alongside
+  the preregistered 350M$\times$5B ($M=2\text{M}$) target.
+  (b) Induced collision phase boundary $M^\star(T) \propto U(T)$ using
+  FineWeb's measured Heaps exponent ($\beta=0.714$).}
+  \label{fig:collision_law}
+\end{figure}

@@ -16,6 +16,7 @@ Style: Minimalist serif (Times/STIX), open L-frame spines, light solid grid (`#E
 | `fig6_gates_beta2` | Block E + Block F | Gates learned from `0.5` emerge naturally vs. flat `RMSNorm`; $\beta_2$ invariance across `0.9–0.999`. |
 | `fig7_bridge` | `v50257_bridge_results.json`, `u123_v2_results.json`, `latency_v50257.json` | 3-seed $V=50{,}257$ (30M) convergence (`U123_v2_fullmid` `4.807` & `CTRL_hs_pruned` `4.819` both beat `2.25x` `plain_d384`, `fullmid` vs pruned `+0.0118` n.s.) & throughput–quality frontier. |
 | `fig8_theory_tests` | `theory_cstar_analysis.json` → `F_three_component_tests` | $M$-shift (`M=6k -> 96k`) delays global crossover while `pc_100` stays positive; 3-seed inter-layer $\rho_{\ell,\ell'}$ stays low (`0.15 -> 0.11`) as depth gain grows. |
+| `fig9_collision_law` | `collision_law.json` | Log-linear collision-load law $\Delta \approx a \ln(U(T)/M)+b$ ($R^2=0.963/0.982$ on $V=6\text{k}$) extrapolating out-of-sample to 30M & 125M×2.5B and preregistering 350M×5B, plus phase boundary $M^\star(T)$. |
 
 ## Reproduce
 

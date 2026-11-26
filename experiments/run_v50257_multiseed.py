@@ -35,10 +35,10 @@ _orig_init = upg.SharedBridgeBank.__init__
 
 def _patched_init(self, V, d_mem, n_hi, mid_hash_rows=200000, n_3g=0, use_3g=True,
                   bank_mode="mp_ve", hs_pair_rows=100000):
-    if bank_mode == "hard_stack_pruned":
+    if bank_mode in ("hard_stack_pruned", "uniform_mgram"):
         _orig_init(self, V, d_mem, n_hi, mid_hash_rows=mid_hash_rows, n_3g=n_3g,
                    use_3g=False, bank_mode="hard_stack", hs_pair_rows=hs_pair_rows)
-        self.bank_mode = "hard_stack_pruned"
+        self.bank_mode = bank_mode
     else:
         _orig_init(self, V, d_mem, n_hi, mid_hash_rows=mid_hash_rows, n_3g=n_3g,
                    use_3g=use_3g, bank_mode=bank_mode, hs_pair_rows=hs_pair_rows)
@@ -50,6 +50,11 @@ def _patched_lookup(self, ids, hi_id, is_mid, g3_id, out_dtype):
     if self.bank_mode == "hard_stack":
         h_idx = (p1 * 1000003 + ids) % self.hs_pair_rows
         return w_vec, self.ve_pair[h_idx].to(out_dtype)
+    if self.bank_mode == "uniform_mgram":
+        p2 = F.pad(ids, (2, 0), value=self.V)[:, :-2]
+        h2 = (p1 * 1000003 + ids) % self.hs_pair_rows
+        h3 = (p2 * 998244353 + p1 * 1000003 + ids + 17) % self.hs_pair_rows
+        return w_vec, self.ve_pair[h2].to(out_dtype) + self.ve_pair[h3].to(out_dtype)
     if self.bank_mode == "hard_stack_pruned":
         h_idx = (p1 * 1000003 + ids) % self.hs_pair_rows
         # Keep ONLY pairs with prefix count >= 1 (projected >= 10 in 30M tokens: hi or mid)!
@@ -176,6 +181,12 @@ def run_single(arm_name, seed, data):
         return upg.run_upg_arm(
             arm_name, data, d_mem=512, hs_pair_rows=100000, use_3g=False,
             bank_mode="hard_stack_pruned", ctx_gate=True, inject_res=True, pre_head_mem=True,
+            eval_fracs=(0.25, 0.5, 0.75, 1.0), seed=seed, dev="cuda",
+        )
+    if arm_name == "uniform_mgram_d256_prefix10":
+        return upg.run_upg_arm(
+            arm_name, data, d_mem=512, hs_pair_rows=100000, use_3g=False,
+            bank_mode="uniform_mgram", ctx_gate=True, inject_res=True, pre_head_mem=True,
             eval_fracs=(0.25, 0.5, 0.75, 1.0), seed=seed, dev="cuda",
         )
     raise ValueError(arm_name)

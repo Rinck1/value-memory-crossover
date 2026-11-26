@@ -17,6 +17,7 @@ TRAIN_TOKENS="${TRAIN_TOKENS:-2500000000}"
 COUNT_TOKENS="${COUNT_TOKENS:-250000000}"
 COMPILE="${COMPILE:-1}"
 RUN_P2_ABLATIONS="${RUN_P2_ABLATIONS:-1}"
+RUN_OT_CONTROL="${RUN_OT_CONTROL:-1}"
 TASKS="${TASKS:-lambada_openai,wikitext,piqa,arc_easy,sciq,hellaswag}"
 
 wait_all() {
@@ -49,7 +50,7 @@ python experiments/save_counts_125m.py \
 mkdir -p "${OUT_DIR}" results/lm_eval
 
 echo "=== [3/5] Smoke + 25-step probes ==="
-for arm in plain plain_eq_weights word xgram engram mp_ve u1 u123 u123_no3g ctrl_word ctrl_hs ctrl_hs_pruned; do
+for arm in plain plain_eq_weights word xgram engram mp_ve u1 u123 u123_no3g ctrl_word ctrl_hs ctrl_hs_pruned uniform_mgram; do
     python train_125m.py --smoke --arm "${arm}" --device cpu --out "/tmp/smoke2_${arm}" >/dev/null
     echo "  [smoke ok] ${arm}"
 done
@@ -62,6 +63,10 @@ python train_125m.py --arm xgram --micro-batch 16 --grad-accum 16 --data-dir "${
 python train_125m.py --arm plain --d 832 --heads 13 --micro-batch 16 --grad-accum 16 --data-dir "${DATA_DIR}" \
     --count-tokens 50000000 --steps 25 --eval-tokens 3000000 --log-interval 5 \
     --compile "${COMPILE}" --out /tmp/probe_plain184
+if [ "${RUN_OT_CONTROL}" = "1" ]; then
+    python train_125m.py --arm uniform_mgram --micro-batch 16 --grad-accum 16 --data-dir "${DATA_DIR}" --count-tokens 50000000 \
+        --steps 25 --eval-tokens 3000000 --log-interval 5 --compile "${COMPILE}" --out /tmp/probe_uniform_mgram
+fi
 if [ "${RUN_P2_ABLATIONS}" = "1" ]; then
     python train_125m.py --arm u123_no3g --micro-batch 16 --grad-accum 16 --data-dir "${DATA_DIR}" --count-tokens 50000000 \
         --steps 25 --eval-tokens 3000000 --log-interval 5 --compile "${COMPILE}" --out /tmp/probe_u123_no3g
@@ -102,12 +107,24 @@ CUDA_VISIBLE_DEVICES=2 python train_125m.py --arm plain_eq_weights --eq-width 14
 CUDA_VISIBLE_DEVICES=3 python train_125m.py --arm ctrl_word --micro-batch 16 --grad-accum 16 --seed 2 --data-dir "${DATA_DIR}" --train-tokens "${TRAIN_TOKENS}" --compile "${COMPILE}" --out "${OUT_DIR}/ctrl_word_s2" & pids+=($!)
 wait_all "${pids[@]}"
 
-# Wave 4 (P2 ablation): isolate 3-gram contribution in U123 at 125M x 2.5B.
-if [ "${RUN_P2_ABLATIONS}" = "1" ]; then
+# Wave 4 (P2 ablation + Over-Tokenized value-side uniform multi-gram control).
+if [ "${RUN_P2_ABLATIONS}" = "1" ] || [ "${RUN_OT_CONTROL}" = "1" ]; then
     pids=()
-    CUDA_VISIBLE_DEVICES=0 python train_125m.py --arm u123_no3g --micro-batch 16 --grad-accum 16 --seed 0 --data-dir "${DATA_DIR}" --train-tokens "${TRAIN_TOKENS}" --compile "${COMPILE}" --out "${OUT_DIR}/u123_no3g_s0" & pids+=($!)
-    CUDA_VISIBLE_DEVICES=1 python train_125m.py --arm u123_no3g --micro-batch 16 --grad-accum 16 --seed 1 --data-dir "${DATA_DIR}" --train-tokens "${TRAIN_TOKENS}" --compile "${COMPILE}" --out "${OUT_DIR}/u123_no3g_s1" & pids+=($!)
-    CUDA_VISIBLE_DEVICES=2 python train_125m.py --arm u123_no3g --micro-batch 16 --grad-accum 16 --seed 2 --data-dir "${DATA_DIR}" --train-tokens "${TRAIN_TOKENS}" --compile "${COMPILE}" --out "${OUT_DIR}/u123_no3g_s2" & pids+=($!)
+    if [ "${RUN_P2_ABLATIONS}" = "1" ]; then
+        CUDA_VISIBLE_DEVICES=0 python train_125m.py --arm u123_no3g --micro-batch 16 --grad-accum 16 --seed 0 --data-dir "${DATA_DIR}" --train-tokens "${TRAIN_TOKENS}" --compile "${COMPILE}" --out "${OUT_DIR}/u123_no3g_s0" & pids+=($!)
+        CUDA_VISIBLE_DEVICES=1 python train_125m.py --arm u123_no3g --micro-batch 16 --grad-accum 16 --seed 1 --data-dir "${DATA_DIR}" --train-tokens "${TRAIN_TOKENS}" --compile "${COMPILE}" --out "${OUT_DIR}/u123_no3g_s1" & pids+=($!)
+        CUDA_VISIBLE_DEVICES=2 python train_125m.py --arm u123_no3g --micro-batch 16 --grad-accum 16 --seed 2 --data-dir "${DATA_DIR}" --train-tokens "${TRAIN_TOKENS}" --compile "${COMPILE}" --out "${OUT_DIR}/u123_no3g_s2" & pids+=($!)
+    fi
+    if [ "${RUN_OT_CONTROL}" = "1" ]; then
+        CUDA_VISIBLE_DEVICES=3 python train_125m.py --arm uniform_mgram --micro-batch 16 --grad-accum 16 --seed 0 --data-dir "${DATA_DIR}" --train-tokens "${TRAIN_TOKENS}" --compile "${COMPILE}" --out "${OUT_DIR}/uniform_mgram_s0" & pids+=($!)
+    fi
+    wait_all "${pids[@]}"
+fi
+
+if [ "${RUN_OT_CONTROL}" = "1" ]; then
+    pids=()
+    CUDA_VISIBLE_DEVICES=0 python train_125m.py --arm uniform_mgram --micro-batch 16 --grad-accum 16 --seed 1 --data-dir "${DATA_DIR}" --train-tokens "${TRAIN_TOKENS}" --compile "${COMPILE}" --out "${OUT_DIR}/uniform_mgram_s1" & pids+=($!)
+    CUDA_VISIBLE_DEVICES=1 python train_125m.py --arm uniform_mgram --micro-batch 16 --grad-accum 16 --seed 2 --data-dir "${DATA_DIR}" --train-tokens "${TRAIN_TOKENS}" --compile "${COMPILE}" --out "${OUT_DIR}/uniform_mgram_s2" & pids+=($!)
     wait_all "${pids[@]}"
 fi
 

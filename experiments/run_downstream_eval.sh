@@ -59,7 +59,7 @@ if [ "${SCALE}" = "125m" ] || [ "${SCALE}" = "all" ]; then
         "runs_125m:u1" "runs_125m:ctrl_hs" "runs_125m:plain_eqW" "runs_125m:ctrl_word" \
         "${OUT_DIR_125M}:engram" "${OUT_DIR_125M}:plain184" "${OUT_DIR_125M}:xgram" \
         "${OUT_DIR_125M}:mpve" "${OUT_DIR_125M}:plain_eqW" "${OUT_DIR_125M}:ctrl_word" \
-        "${OUT_DIR_125M}:u123_no3g"
+        "${OUT_DIR_125M}:u123_no3g" "${OUT_DIR_125M}:uniform_mgram"
 fi
 
 if [ "${SCALE}" = "350m" ] || [ "${SCALE}" = "all" ]; then
