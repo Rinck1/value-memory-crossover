@@ -16,6 +16,8 @@ SHARDS="${SHARDS:-26}"
 TRAIN_TOKENS="${TRAIN_TOKENS:-2500000000}"
 COUNT_TOKENS="${COUNT_TOKENS:-250000000}"
 COMPILE="${COMPILE:-1}"
+RUN_P2_ABLATIONS="${RUN_P2_ABLATIONS:-1}"
+TASKS="${TASKS:-lambada_openai,wikitext,piqa,arc_easy,sciq,hellaswag}"
 
 wait_all() {
     local fail=0
@@ -47,59 +49,96 @@ python experiments/save_counts_125m.py \
 mkdir -p "${OUT_DIR}" results/lm_eval
 
 echo "=== [3/5] Smoke + 25-step probes ==="
-for arm in plain plain_eq_weights word mp_ve u1 u123 ctrl_word ctrl_hs ctrl_hs_pruned; do
+for arm in plain plain_eq_weights word xgram engram mp_ve u1 u123 u123_no3g ctrl_word ctrl_hs ctrl_hs_pruned; do
     python train_125m.py --smoke --arm "${arm}" --device cpu --out "/tmp/smoke2_${arm}" >/dev/null
     echo "  [smoke ok] ${arm}"
 done
 
-# 25-step real-dimension probes.  Uncomment after implementing the arm.
-# python train_125m.py --arm engram --data-dir "${DATA_DIR}" --count-tokens 50000000 \
-#   --steps 25 --eval-tokens 3000000 --log-interval 5 --compile "${COMPILE}" --out /tmp/probe_engram
-# python train_125m.py --arm xgram --data-dir "${DATA_DIR}" --count-tokens 50000000 \
-#   --steps 25 --eval-tokens 3000000 --log-interval 5 --compile "${COMPILE}" --out /tmp/probe_xgram
-python train_125m.py --arm plain --d 832 --heads 13 --data-dir "${DATA_DIR}" \
+# 25-step real-dimension probes across all newly added / modified arms.
+python train_125m.py --arm engram --micro-batch 16 --grad-accum 16 --data-dir "${DATA_DIR}" --count-tokens 50000000 \
+    --steps 25 --eval-tokens 3000000 --log-interval 5 --compile "${COMPILE}" --out /tmp/probe_engram
+python train_125m.py --arm xgram --micro-batch 16 --grad-accum 16 --data-dir "${DATA_DIR}" --count-tokens 50000000 \
+    --steps 25 --eval-tokens 3000000 --log-interval 5 --compile "${COMPILE}" --out /tmp/probe_xgram
+python train_125m.py --arm plain --d 832 --heads 13 --micro-batch 16 --grad-accum 16 --data-dir "${DATA_DIR}" \
     --count-tokens 50000000 --steps 25 --eval-tokens 3000000 --log-interval 5 \
     --compile "${COMPILE}" --out /tmp/probe_plain184
+if [ "${RUN_P2_ABLATIONS}" = "1" ]; then
+    python train_125m.py --arm u123_no3g --micro-batch 16 --grad-accum 16 --data-dir "${DATA_DIR}" --count-tokens 50000000 \
+        --steps 25 --eval-tokens 3000000 --log-interval 5 --compile "${COMPILE}" --out /tmp/probe_u123_no3g
+fi
+
+if [ -f "runs_125m/u123_s0/ckpt_2500M.pt" ] && [ -f "${DATA_DIR}/fineweb_val_000000.bin" ]; then
+    echo "=== [3b/5] Verify CountData alignment against Phase-1 u123_s0 ==="
+    python experiments/eval_lm.py --checkpoint runs_125m/u123_s0/ckpt_2500M.pt \
+        --countdata results/countdata_125m.npz \
+        --verify-val-shard "${DATA_DIR}/fineweb_val_000000.bin"
+fi
 
 echo "=== [4/5] Training waves ==="
 
-# Wave 1 (seed 0): new baselines.  Engram/X-GRAM require implementation.
+# Wave 1 (seed 0): new baselines (Engram, Equal-Active-FLOP Plain-184M, X-GRAM, MP-VE).
 pids=()
-# CUDA_VISIBLE_DEVICES=0 python train_125m.py --arm engram --seed 0 --data-dir "${DATA_DIR}" --train-tokens "${TRAIN_TOKENS}" --compile "${COMPILE}" --out "${OUT_DIR}/engram_s0" & pids+=($!)
-CUDA_VISIBLE_DEVICES=${GPU_PLAIN184:-1} python train_125m.py --arm plain --d 832 --heads 13 --seed 0 --data-dir "${DATA_DIR}" --train-tokens "${TRAIN_TOKENS}" --compile "${COMPILE}" --out "${OUT_DIR}/plain184_s0" & pids+=($!)
-# CUDA_VISIBLE_DEVICES=2 python train_125m.py --arm xgram --seed 0 --data-dir "${DATA_DIR}" --train-tokens "${TRAIN_TOKENS}" --compile "${COMPILE}" --out "${OUT_DIR}/xgram_s0" & pids+=($!)
-CUDA_VISIBLE_DEVICES=${GPU_MPVE:-3} python train_125m.py --arm mp_ve --seed 0 --data-dir "${DATA_DIR}" --train-tokens "${TRAIN_TOKENS}" --compile "${COMPILE}" --out "${OUT_DIR}/mpve_s0" & pids+=($!)
+CUDA_VISIBLE_DEVICES=0 python train_125m.py --arm engram --micro-batch 16 --grad-accum 16 --seed 0 --data-dir "${DATA_DIR}" --train-tokens "${TRAIN_TOKENS}" --compile "${COMPILE}" --out "${OUT_DIR}/engram_s0" & pids+=($!)
+CUDA_VISIBLE_DEVICES=1 python train_125m.py --arm plain --d 832 --heads 13 --micro-batch 16 --grad-accum 16 --seed 0 --data-dir "${DATA_DIR}" --train-tokens "${TRAIN_TOKENS}" --compile "${COMPILE}" --out "${OUT_DIR}/plain184_s0" & pids+=($!)
+CUDA_VISIBLE_DEVICES=2 python train_125m.py --arm xgram --micro-batch 16 --grad-accum 16 --seed 0 --data-dir "${DATA_DIR}" --train-tokens "${TRAIN_TOKENS}" --compile "${COMPILE}" --out "${OUT_DIR}/xgram_s0" & pids+=($!)
+CUDA_VISIBLE_DEVICES=3 python train_125m.py --arm mp_ve --micro-batch 16 --grad-accum 16 --seed 0 --data-dir "${DATA_DIR}" --train-tokens "${TRAIN_TOKENS}" --compile "${COMPILE}" --out "${OUT_DIR}/mpve_s0" & pids+=($!)
 wait_all "${pids[@]}"
 
-# Wave 2: seeds 1/2 for the new baselines (uncomment engram/xgram after implementation).
+# Wave 2: seeds 1/2 for the new baselines.
 for sd in 1 2; do
     pids=()
-    # CUDA_VISIBLE_DEVICES=0 python train_125m.py --arm engram --seed "${sd}" ... & pids+=($!)
-    CUDA_VISIBLE_DEVICES=${GPU_PLAIN184:-1} python train_125m.py --arm plain --d 832 --heads 13 --seed "${sd}" --data-dir "${DATA_DIR}" --train-tokens "${TRAIN_TOKENS}" --compile "${COMPILE}" --out "${OUT_DIR}/plain184_s${sd}" & pids+=($!)
-    # CUDA_VISIBLE_DEVICES=2 python train_125m.py --arm xgram --seed "${sd}" ... & pids+=($!)
-    CUDA_VISIBLE_DEVICES=${GPU_MPVE:-3} python train_125m.py --arm mp_ve --seed "${sd}" --data-dir "${DATA_DIR}" --train-tokens "${TRAIN_TOKENS}" --compile "${COMPILE}" --out "${OUT_DIR}/mpve_s${sd}" & pids+=($!)
+    CUDA_VISIBLE_DEVICES=0 python train_125m.py --arm engram --micro-batch 16 --grad-accum 16 --seed "${sd}" --data-dir "${DATA_DIR}" --train-tokens "${TRAIN_TOKENS}" --compile "${COMPILE}" --out "${OUT_DIR}/engram_s${sd}" & pids+=($!)
+    CUDA_VISIBLE_DEVICES=1 python train_125m.py --arm plain --d 832 --heads 13 --micro-batch 16 --grad-accum 16 --seed "${sd}" --data-dir "${DATA_DIR}" --train-tokens "${TRAIN_TOKENS}" --compile "${COMPILE}" --out "${OUT_DIR}/plain184_s${sd}" & pids+=($!)
+    CUDA_VISIBLE_DEVICES=2 python train_125m.py --arm xgram --micro-batch 16 --grad-accum 16 --seed "${sd}" --data-dir "${DATA_DIR}" --train-tokens "${TRAIN_TOKENS}" --compile "${COMPILE}" --out "${OUT_DIR}/xgram_s${sd}" & pids+=($!)
+    CUDA_VISIBLE_DEVICES=3 python train_125m.py --arm mp_ve --micro-batch 16 --grad-accum 16 --seed "${sd}" --data-dir "${DATA_DIR}" --train-tokens "${TRAIN_TOKENS}" --compile "${COMPILE}" --out "${OUT_DIR}/mpve_s${sd}" & pids+=($!)
     wait_all "${pids[@]}"
 done
 
 # Wave 3: missing seeds for equal weights and the adapter control.
 pids=()
 CUDA_VISIBLE_DEVICES=0 python train_125m.py --arm plain_eq_weights --eq-width 1472 --eq-heads 16 --micro-batch 16 --grad-accum 16 --seed 1 --data-dir "${DATA_DIR}" --train-tokens "${TRAIN_TOKENS}" --compile "${COMPILE}" --out "${OUT_DIR}/plain_eqW_s1" & pids+=($!)
-CUDA_VISIBLE_DEVICES=1 python train_125m.py --arm ctrl_word --seed 1 --data-dir "${DATA_DIR}" --train-tokens "${TRAIN_TOKENS}" --compile "${COMPILE}" --out "${OUT_DIR}/ctrl_word_s1" & pids+=($!)
+CUDA_VISIBLE_DEVICES=1 python train_125m.py --arm ctrl_word --micro-batch 16 --grad-accum 16 --seed 1 --data-dir "${DATA_DIR}" --train-tokens "${TRAIN_TOKENS}" --compile "${COMPILE}" --out "${OUT_DIR}/ctrl_word_s1" & pids+=($!)
 CUDA_VISIBLE_DEVICES=2 python train_125m.py --arm plain_eq_weights --eq-width 1472 --eq-heads 16 --micro-batch 16 --grad-accum 16 --seed 2 --data-dir "${DATA_DIR}" --train-tokens "${TRAIN_TOKENS}" --compile "${COMPILE}" --out "${OUT_DIR}/plain_eqW_s2" & pids+=($!)
-CUDA_VISIBLE_DEVICES=3 python train_125m.py --arm ctrl_word --seed 2 --data-dir "${DATA_DIR}" --train-tokens "${TRAIN_TOKENS}" --compile "${COMPILE}" --out "${OUT_DIR}/ctrl_word_s2" & pids+=($!)
+CUDA_VISIBLE_DEVICES=3 python train_125m.py --arm ctrl_word --micro-batch 16 --grad-accum 16 --seed 2 --data-dir "${DATA_DIR}" --train-tokens "${TRAIN_TOKENS}" --compile "${COMPILE}" --out "${OUT_DIR}/ctrl_word_s2" & pids+=($!)
 wait_all "${pids[@]}"
 
-echo "=== [5/5] Zero-shot lm-eval on phase-1 + new checkpoints ==="
-# Phase-1 runs live under runs_125m/ (adjust if your paths differ).
-for arm in u123 ctrl_hs_pruned plain word; do
+# Wave 4 (P2 ablation): isolate 3-gram contribution in U123 at 125M x 2.5B.
+if [ "${RUN_P2_ABLATIONS}" = "1" ]; then
+    pids=()
+    CUDA_VISIBLE_DEVICES=0 python train_125m.py --arm u123_no3g --micro-batch 16 --grad-accum 16 --seed 0 --data-dir "${DATA_DIR}" --train-tokens "${TRAIN_TOKENS}" --compile "${COMPILE}" --out "${OUT_DIR}/u123_no3g_s0" & pids+=($!)
+    CUDA_VISIBLE_DEVICES=1 python train_125m.py --arm u123_no3g --micro-batch 16 --grad-accum 16 --seed 1 --data-dir "${DATA_DIR}" --train-tokens "${TRAIN_TOKENS}" --compile "${COMPILE}" --out "${OUT_DIR}/u123_no3g_s1" & pids+=($!)
+    CUDA_VISIBLE_DEVICES=2 python train_125m.py --arm u123_no3g --micro-batch 16 --grad-accum 16 --seed 2 --data-dir "${DATA_DIR}" --train-tokens "${TRAIN_TOKENS}" --compile "${COMPILE}" --out "${OUT_DIR}/u123_no3g_s2" & pids+=($!)
+    wait_all "${pids[@]}"
+fi
+
+echo "=== [5/5] Zero-shot lm-eval + FineWeb bucketed top-1 accuracy ==="
+mkdir -p results/lm_eval/bucket_acc
+for base_arm in \
+    "runs_125m:u123" "runs_125m:ctrl_hs_pruned" "runs_125m:plain" "runs_125m:word" \
+    "runs_125m:u1" "runs_125m:ctrl_hs" "runs_125m:plain_eqW" "runs_125m:ctrl_word" \
+    "${OUT_DIR}:engram" "${OUT_DIR}:plain184" "${OUT_DIR}:xgram" "${OUT_DIR}:mpve" \
+    "${OUT_DIR}:plain_eqW" "${OUT_DIR}:ctrl_word" "${OUT_DIR}:u123_no3g"; do
+    root="${base_arm%%:*}"
+    arm="${base_arm##*:}"
     for sd in 0 1 2; do
-        ckpt="runs_125m/${arm}_s${sd}/ckpt_2500M.pt"
-        [ -f "${ckpt}" ] || { echo "[skip] ${ckpt}"; continue; }
+        ckpt="${root}/${arm}_s${sd}/ckpt_2500M.pt"
+        [ -f "${ckpt}" ] || continue
+        if [ -f "${DATA_DIR}/fineweb_val_000000.bin" ] && [ ! -f "results/lm_eval/bucket_acc/${arm}_s${sd}.json" ]; then
+            python experiments/eval_lm.py --checkpoint "${ckpt}" \
+                --countdata results/countdata_125m.npz \
+                --verify-val-shard "${DATA_DIR}/fineweb_val_000000.bin" \
+                --output "results/lm_eval/bucket_acc/${arm}_s${sd}.json"
+        fi
+        out_json="results/lm_eval/${arm}_s${sd}.json"
+        if [ -f "${out_json}" ]; then
+            echo "[skip existing] ${out_json}"
+            continue
+        fi
         python experiments/eval_lm.py --checkpoint "${ckpt}" \
             --countdata results/countdata_125m.npz \
-            --tasks lambada_openai,wikitext,piqa,arc_easy \
-            --num_fewshot 0 --batch_size 4 \
-            --output "results/lm_eval/${arm}_s${sd}.json"
+            --tasks "${TASKS}" \
+            --num_fewshot 0 --batch_size 8 \
+            --output "${out_json}"
     done
 done
 

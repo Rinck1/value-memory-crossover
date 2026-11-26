@@ -61,8 +61,8 @@ def _find_suffix(state: dict, suffix: str):
     return None
 
 
-def build_model_from_checkpoint(checkpoint: str, countdata: str, max_seq: int, device: str):
-    ckpt = torch.load(checkpoint, map_location="cpu")
+def build_model_from_checkpoint(checkpoint: str, countdata: str, max_seq: int | None, device: str):
+    ckpt = torch.load(checkpoint, map_location="cpu", weights_only=False)
     cfg_args = ckpt["config"]
     state = _strip_prefixes(ckpt["model"])
 
@@ -73,6 +73,7 @@ def build_model_from_checkpoint(checkpoint: str, countdata: str, max_seq: int, d
     d_mem = int(cfg_args.get("d_mem", 256))
     pair_rows = int(cfg_args.get("pair_rows", 1_000_000))
     V = int(cfg_args.get("V", 50257))
+    seq_len = int(max_seq if max_seq is not None else cfg_args.get("seq_len", 512))
 
     try:
         cfg = t.arm_config(arm, layers, d, d_mem)
@@ -86,6 +87,7 @@ def build_model_from_checkpoint(checkpoint: str, countdata: str, max_seq: int, d
     ve_mid_a = _find_suffix(state, "ve_mid_a")
     ve_mid_full = _find_suffix(state, "ve_mid_full")
     ve_3g = _find_suffix(state, "ve_3g")
+    ve_word_hi = _find_suffix(state, "ve_word_hi")
     n_hi = 0 if ve_hi is None else int(ve_hi.shape[0]) - 1
     n_mid = 0
     if ve_mid_a is not None:
@@ -93,15 +95,17 @@ def build_model_from_checkpoint(checkpoint: str, countdata: str, max_seq: int, d
     elif ve_mid_full is not None:
         n_mid = int(ve_mid_full.shape[0])
     n_3g = 0 if ve_3g is None else int(ve_3g.shape[0]) - 1
+    n_w_hi = None if ve_word_hi is None else int(ve_word_hi.shape[0])
     use_3g = bool(cfg["use_3g"] and n_3g > 0)
 
     model = t.Model(
-        V, d, layers, heads, max_seq,
+        V, d, layers, heads, seq_len,
         arm=arm, ve_layers=cfg["ve_layers"], d_mem=cfg["d_mem"],
         memory_mode=cfg["memory_mode"], n_hi=n_hi, n_mid=n_mid, n_3g=n_3g,
         pair_rows=pair_rows, gate_mode=cfg["gate_mode"],
         use_ctx_gate=cfg["ctx_gate"], inject_res=cfg["inject_res"],
         pre_head_mem=cfg["prehead"], share_bank_across_layers=cfg["shared"],
+        use_engram=cfg.get("use_engram", False), n_w_hi=n_w_hi,
     )
     missing, unexpected = model.load_state_dict(state, strict=False)
     if missing or unexpected:
@@ -119,15 +123,70 @@ def build_model_from_checkpoint(checkpoint: str, countdata: str, max_seq: int, d
         mature_keys=z["mature_keys"], all_keys=z["all_keys"],
         all_counts=z["all_counts"],
         eff_hi=int(z["eff_hi"]), eff_mid=int(z["eff_mid"]), eff_g3=int(z["eff_g3"]),
+        xgram_hi_words=z["xgram_hi_words"] if "xgram_hi_words" in z else None,
     )
-    if len(cd.hi_keys) != n_hi or len(cd.mid_keys) != n_mid or (use_3g and len(cd.g3_keys) != n_3g):
+    if cd.V != V:
+        raise SystemExit(f"[eval] CountData V={cd.V} != checkpoint V={V}")
+    if cfg["memory_mode"] == "tiered":
+        if len(cd.hi_keys) != n_hi or len(cd.mid_keys) != n_mid:
+            raise SystemExit(
+                "[eval] CountData does not match tiered checkpoint table sizes:\n"
+                f"  hi {len(cd.hi_keys)} vs {n_hi}; mid {len(cd.mid_keys)} vs {n_mid}\n"
+                "Use the countdata file saved from the same 250M-token prefix as training."
+            )
+    if use_3g and len(cd.g3_keys) != n_3g:
         raise SystemExit(
-            "[eval] CountData does not match checkpoint table sizes:\n"
-            f"  hi {len(cd.hi_keys)} vs {n_hi}; mid {len(cd.mid_keys)} vs {n_mid}; "
-            f"3g {len(cd.g3_keys)} vs {n_3g}\n"
-            "Use the countdata file saved from the same 250M-token prefix as training."
+            f"[eval] CountData 3g {len(cd.g3_keys)} != checkpoint {n_3g}"
         )
-    return model, cd, cfg, V, d, layers, heads
+    if cfg["memory_mode"] == "hash" and cfg["gate_mode"] == "tier" and len(cd.mature_keys) == 0:
+        raise SystemExit("[eval] CountData has empty mature_keys for pruned hash arm")
+    return model, cd, cfg, cfg_args, V, d, layers, heads, seq_len
+
+
+@torch.no_grad()
+def evaluate_val_shard(model, cd, cfg, cfg_args, val_shard: str, device: str, seq_len: int) -> dict:
+    """Verify exact checkpoint+CountData alignment and compute bucketed FineWeb loss + top-1 accuracy."""
+    val_stream = t.ShardStream([val_shard])
+    val_seqs = int(cfg_args.get("val_seqs", 256))
+    starts = np.linspace(0, val_stream.total - seq_len - 2, val_seqs).astype(np.int64)
+    val_tokens = np.stack([val_stream.read(int(s), seq_len + 1) for s in starts]).astype(np.int64)
+
+    V = int(cfg_args.get("V", 50257))
+    bs = int(cfg_args.get("eval_batch", 4))
+    count_tokens = int(cfg_args.get("count_tokens", 250_000_000))
+    train_tokens = float(cfg_args.get("train_tokens", 2_500_000_000))
+    auto_scale = int(cfg_args.get("auto_scale_thresh", 1))
+    scale = (count_tokens / max(1.0, train_tokens)) if auto_scale else 1.0
+    dev = torch.device(device)
+
+    losses, accs, buckets = [], [], []
+    for i in range(0, len(val_tokens), bs):
+        toks = val_tokens[i:i + bs]
+        t_md = t.make_train_ids(toks, cd, V, cfg)
+        counts = t._lookup_pair_counts(toks, cd.all_keys, cd.all_counts, V)
+        b_id = np.digitize(counts.astype(np.float64) / max(1e-9, scale), [1, 10, 100, 1000]).astype(np.int64)
+        ids = torch.from_numpy(toks[:, :-1]).to(dev)
+        tgt = torch.from_numpy(toks[:, 1:]).to(dev)
+        mem = {k: torch.from_numpy(v).to(dev) for k, v in t_md.items()}
+        with torch.autocast(device_type=dev.type, dtype=torch.bfloat16, enabled=(dev.type == "cuda")):
+            logits = model(ids, **mem)
+            lg = logits.float().reshape(-1, V)
+            tf = tgt.reshape(-1)
+            loss = F.cross_entropy(lg, tf, reduction="none")
+            acc = (lg.argmax(dim=-1) == tf).float()
+        losses.append(loss.cpu())
+        accs.append(acc.cpu())
+        buckets.append(torch.from_numpy(b_id).reshape(-1))
+    loss = torch.cat(losses)
+    acc = torch.cat(accs)
+    bucket = torch.cat(buckets)
+    out = {"val": round(float(loss.mean()), 5), "acc": round(float(acc.mean()), 5)}
+    for b in range(5):
+        sel = bucket == b
+        if int(sel.sum()) > 0:
+            out[f"pc_{b}"] = round(float(loss[sel].mean()), 5)
+            out[f"acc_pc_{b}"] = round(float(acc[sel].mean()), 5)
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -145,12 +204,12 @@ def make_lm_class():
         )
 
     class ValueMemoryLM(LM):
-        def __init__(self, checkpoint, countdata, device="cuda", max_length=1024, batch_size=1):
+        def __init__(self, checkpoint, countdata, device="cuda", max_length=None, batch_size=1):
             super().__init__()
             self._device = device
-            self._max_length = max_length
-            self._batch_size = batch_size
-            self.model, self.cd, self.cfg, self.V, self.d, self.layers, self.heads = \
+            self._batch_size = max(1, int(batch_size))
+            (self.model, self.cd, self.cfg, self.cfg_args,
+             self.V, self.d, self.layers, self.heads, self._max_length) = \
                 build_model_from_checkpoint(checkpoint, countdata, max_length, device)
             from transformers import AutoTokenizer
             self.tok = AutoTokenizer.from_pretrained("gpt2")
@@ -162,8 +221,16 @@ def make_lm_class():
             return self.eot
 
         @property
+        def prefix_token_id(self):
+            return self.eot
+
+        @property
         def max_length(self):
             return self._max_length
+
+        @property
+        def max_gen_toks(self):
+            return 256
 
         @property
         def batch_size(self):
@@ -184,10 +251,11 @@ def make_lm_class():
             return self.tok.decode(tokens, skip_special_tokens=True)
 
         # ---- core forward ----
-        def _logits_from_tokens(self, tokens: list[int]):
-            if len(tokens) < 2:
-                return None
-            toks = np.asarray(tokens, dtype=np.int64)[None, :]
+        def _forward_batch(self, seqs: list[list[int]]):
+            max_len = max(len(s) for s in seqs)
+            toks = np.full((len(seqs), max_len), self.eot, dtype=np.int64)
+            for i, s in enumerate(seqs):
+                toks[i, :len(s)] = s
             md = t.make_train_ids(toks, self.cd, self.V, self.cfg)
             ids = torch.from_numpy(toks[:, :-1]).to(self._device)
             mem = {k: torch.from_numpy(v).to(self._device) for k, v in md.items()}
@@ -196,62 +264,78 @@ def make_lm_class():
                 enabled=(self._device.startswith("cuda")),
             ):
                 logits = self.model(ids, **mem)
-            return logits[0].float()
+            return logits
 
-        def _logprob(self, context: str, continuation: str):
+        def _logits_teacher_forced(self, tokens: list[int]):
+            if len(tokens) < 2:
+                return None
+            return self._forward_batch([tokens])[0].float()
+
+        def _logits_next_token(self, prefix_tokens: list[int]):
+            pref = prefix_tokens if prefix_tokens else [self.eot]
+            # Appending a dummy target shifts inputs to toks[:, :-1] == pref without touching targets in make_train_ids.
+            return self._forward_batch([pref + [0]])[0, -1].float()
+
+        def _prepare_logprob_item(self, context: str, continuation: str):
             ctx = self.tok_encode(context)
             cont = self.tok_encode(continuation)
-            if len(cont) == 0:
-                return 0.0, True
-            max_ctx = max(0, self._max_length - len(cont))
-            if len(ctx) > max_ctx:
-                ctx = ctx[-max_ctx:] if max_ctx > 0 else []
-            tokens = ctx + cont
-            if len(tokens) < 2:
-                return 0.0, True
-            logits = self._logits_from_tokens(tokens)
-            if logits is None:
-                return 0.0, True
-            start = max(0, len(ctx) - 1)
-            end = len(tokens) - 1
-            total = 0.0
-            greedy = True
-            for j in range(start, end):
-                target = tokens[j + 1]
-                lp = F.log_softmax(logits[j], dim=-1)[target].item()
-                total += lp
-                if int(logits[j].argmax().item()) != target:
-                    greedy = False
-            return float(total), bool(greedy)
+            if not cont:
+                return None
+            if not ctx:
+                ctx = [self.eot]
+            seq = (ctx + cont)[-(self._max_length + 1):]
+            n_scored = min(len(cont), len(seq) - 1)
+            start = (len(seq) - 1) - n_scored
+            return seq, start, n_scored
 
         # ---- lm_eval API ----
         def loglikelihood(self, requests):
-            out = []
-            for req in requests:
+            results: list[tuple[float, bool] | None] = [None] * len(requests)
+            pending = []
+            for idx, req in enumerate(requests):
                 context, continuation = req.args
-                out.append(self._logprob(context, continuation))
-            return out
+                prep = self._prepare_logprob_item(context, continuation)
+                if prep is None:
+                    results[idx] = (0.0, True)
+                else:
+                    pending.append((idx, *prep))
+
+            pending.sort(key=lambda item: len(item[1]))
+            for b0 in range(0, len(pending), self._batch_size):
+                chunk = pending[b0:b0 + self._batch_size]
+                logits = self._forward_batch([item[1] for item in chunk])
+                for b_i, (req_idx, seq, start, n_scored) in enumerate(chunk):
+                    sub = logits[b_i, start:start + n_scored].float()
+                    tgt = torch.tensor(seq[start + 1:start + 1 + n_scored],
+                                       dtype=torch.long, device=sub.device)
+                    lp = F.log_softmax(sub, dim=-1).gather(-1, tgt[:, None]).sum().item()
+                    greedy = bool((sub.argmax(dim=-1) == tgt).all().item())
+                    results[req_idx] = (float(lp), greedy)
+            return results
 
         def loglikelihood_rolling(self, requests):
             out = []
+            ctx_overlap = self._max_length // 2
             for req in requests:
                 text = req.args[0]
                 toks = self.tok_encode(text)
-                if len(toks) < 2:
+                if not toks:
                     out.append(0.0)
                     continue
+                seq = [self.eot] + toks
                 total = 0.0
-                start = 0
-                while start < len(toks) - 1:
-                    end = min(len(toks), start + self._max_length)
-                    window = toks[start:end]
-                    logits = self._logits_from_tokens(window)
+                pos = 1
+                while pos < len(seq):
+                    win_start = max(0, pos - ctx_overlap)
+                    win_end = min(len(seq), win_start + self._max_length + 1)
+                    window = seq[win_start:win_end]
+                    logits = self._logits_teacher_forced(window)
                     if logits is not None:
-                        first = 1 if start == 0 else 0
-                        for j in range(first, len(window) - 1):
-                            target = window[j + 1]
-                            total += float(F.log_softmax(logits[j], dim=-1)[target].item())
-                    start = end - 1
+                        offset = (pos - 1) - win_start
+                        sub = logits[offset:len(window) - 1]
+                        tgt = torch.tensor(seq[pos:win_end], dtype=torch.long, device=sub.device)
+                        total += float(F.log_softmax(sub, dim=-1).gather(-1, tgt[:, None]).sum().item())
+                    pos = win_end
                 out.append(float(total))
             return out
 
@@ -259,32 +343,29 @@ def make_lm_class():
             out = []
             for req in requests:
                 context, gen_kwargs = req.args
-                until = gen_kwargs.get("until", [])
+                until = list(gen_kwargs.get("until", []))
                 max_new = int(gen_kwargs.get("max_gen_toks", 32))
                 do_sample = bool(gen_kwargs.get("do_sample", False))
                 temperature = float(gen_kwargs.get("temperature", 1.0))
-                toks = self.tok_encode(context)
+                prompt_toks = self.tok_encode(context) or [self.eot]
+                generated = []
                 for _ in range(max_new):
-                    if len(toks) >= self._max_length:
-                        toks = toks[-(self._max_length - 1):]
-                    logits = self._logits_from_tokens(toks)
-                    if logits is None:
-                        break
-                    nxt_logits = logits[-1] / max(1e-6, temperature)
+                    prefix = (prompt_toks + generated)[-self._max_length:]
+                    nxt_logits = self._logits_next_token(prefix) / max(1e-6, temperature)
                     if do_sample:
                         probs = F.softmax(nxt_logits, dim=-1)
                         nxt = int(torch.multinomial(probs, 1).item())
                     else:
                         nxt = int(nxt_logits.argmax().item())
-                    toks.append(nxt)
-                    text = self.tok_decode(toks)
-                    if any(text.endswith(u) for u in until):
+                    generated.append(nxt)
+                    gen_text = self.tok_decode(generated)
+                    if any(u in gen_text for u in until):
                         break
-                text = self.tok_decode(toks)
+                gen_text = self.tok_decode(generated)
                 for u in until:
-                    if u in text:
-                        text = text.split(u)[0]
-                out.append(text)
+                    if u in gen_text:
+                        gen_text = gen_text.split(u, 1)[0]
+                out.append(gen_text)
             return out
 
     return ValueMemoryLM
@@ -299,32 +380,48 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument("--checkpoint", required=True)
     p.add_argument("--countdata", required=True)
-    p.add_argument("--tasks", default="lambada_openai,wikitext,piqa,arc_easy,hellaswag")
+    p.add_argument("--tasks", default="lambada_openai,wikitext,piqa,arc_easy,sciq,hellaswag")
     p.add_argument("--num_fewshot", type=int, default=0)
     p.add_argument("--batch_size", type=int, default=1)
-    p.add_argument("--max_length", type=int, default=1024)
+    p.add_argument("--max_length", type=int, default=None,
+                   help="Defaults to checkpoint config seq_len (512) to stay inside trained RoPE range")
     p.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     p.add_argument("--limit", type=float, default=None)
     p.add_argument("--output", default=None)
     p.add_argument("--dry-run", action="store_true")
+    p.add_argument("--verify-val-shard", default=None,
+                   help="Optional path to fineweb_val_000000.bin to verify exact training val-loss parity")
     args = p.parse_args()
 
+    user_output = args.output
     if args.output is None:
         stem = os.path.splitext(os.path.basename(args.checkpoint))[0]
         args.output = os.path.join(ROOT, "results", "lm_eval", stem + ".json")
     os.makedirs(os.path.dirname(os.path.abspath(args.output)), exist_ok=True)
 
+    if args.verify_val_shard:
+        model, cd, cfg, cfg_args, V, d, layers, heads, seq_len = build_model_from_checkpoint(
+            args.checkpoint, args.countdata, args.max_length, args.device)
+        res = evaluate_val_shard(model, cd, cfg, cfg_args, args.verify_val_shard, args.device, seq_len)
+        print(f"[verify-val] arm={cfg_args['arm']} seq_len={seq_len} {res}")
+        if user_output is not None:
+            with open(user_output, "w", encoding="utf-8") as f:
+                json.dump(res, f, indent=2)
+            print(f"[ok] wrote {user_output}")
+        return
+
     if args.dry_run:
         # Load and run one tiny forward without lm_eval.
-        model, cd, cfg, V, d, layers, heads = build_model_from_checkpoint(
+        model, cd, cfg, cfg_args, V, d, layers, heads, seq_len = build_model_from_checkpoint(
             args.checkpoint, args.countdata, args.max_length, args.device)
-        toks = np.random.default_rng(0).integers(0, V, size=(1, 65), dtype=np.int64)
+        n_tok = min(64, seq_len)
+        toks = np.random.default_rng(0).integers(0, V, size=(1, n_tok + 1), dtype=np.int64)
         md = t.make_train_ids(toks, cd, V, cfg)
         ids = torch.from_numpy(toks[:, :-1]).to(args.device)
         mem = {k: torch.from_numpy(v).to(args.device) for k, v in md.items()}
         with torch.no_grad():
             logits = model(ids, **mem)
-        print(f"[dry-run] logits {tuple(logits.shape)} finite={bool(torch.isfinite(logits).all())}")
+        print(f"[dry-run] arm={cfg_args['arm']} seq_len={seq_len} logits {tuple(logits.shape)} finite={bool(torch.isfinite(logits).all())}")
         return
 
     LM = make_lm_class()

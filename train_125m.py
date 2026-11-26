@@ -17,9 +17,12 @@ hard_stack         local full-d word + hashed pair table in the last 2 blocks, d
 mp_ve              shared word + tiered pair bank injected into the last 2 blocks
 u1                 shared word + tiered pair bank injected into all blocks (low-latency variant)
 u123               u1 + context gates + residual injection + pre-head readout + exact 3-gram tier
+u123_no3g          u123 without exact 3-gram tier (isolates 3-gram contribution)
 ctrl_word          u123 dense architecture with ONLY word bank (controls for dense adapter FLOPs)
 ctrl_hs            u123 dense architecture with hashed pair table (no maturity pruning, no exact 3g)
 ctrl_hs_pruned     ctrl_hs with <mid_thresh low-count pairs masked (separates pruning vs exact de-collision)
+engram             multi-head hashed 2/3-gram table + K/V proj + context gate + causal depthwise conv
+xgram              frequency-split word value table (top 80% token cover at d_mem, rest at d_mem/4 + proj)
 """
 from __future__ import annotations
 
@@ -187,12 +190,25 @@ class CountData:
     eff_hi: int
     eff_mid: int
     eff_g3: int
+    xgram_hi_words: np.ndarray | None = None  # sorted top token IDs covering ~80% of prefix tokens
+
+
+def compute_xgram_hi_words(toks: np.ndarray, V: int, cover: float = 0.80) -> np.ndarray:
+    """Select minimum prefix of token IDs sorted by count covering `cover` of `toks`."""
+    w_counts = np.bincount(toks, minlength=V)
+    order = np.argsort(-w_counts, kind="stable")
+    cum = np.cumsum(w_counts[order])
+    target = cover * max(1, int(cum[-1]))
+    k = int(np.searchsorted(cum, target, side="left")) + 1
+    k = max(1, min(k, max(1, V - 1)))
+    return np.sort(order[:k].astype(np.int64))
 
 
 def build_counts(stream: ShardStream | RandomStream, V: int, count_tokens: int,
                  eff_hi: int, eff_mid: int, eff_g3: int,
                  n_hi: int = 500_000, n_mid: int = 1_500_000, n_3g: int = 150_000) -> CountData:
     toks = stream.read(0, count_tokens).astype(np.int64)
+    xgram_hi_words = compute_xgram_hi_words(toks, V, cover=0.80)
     pair_keys = toks[:-1] * V + toks[1:]
     all_keys, all_counts = np.unique(pair_keys, return_counts=True)
 
@@ -220,9 +236,11 @@ def build_counts(stream: ShardStream | RandomStream, V: int, count_tokens: int,
         print(
             f"[counts] prefix={count_tokens/1e6:.1f}M tok | unique={len(all_keys):,} | "
             f"hi(>={eff_hi})={len(hi_keys):,} | mid({eff_mid}..{eff_hi-1})={len(mid_keys):,} | "
-            f"mature(>={eff_mid})={len(mature_keys):,} | 3g(>={eff_g3})={len(g3_keys):,}"
+            f"mature(>={eff_mid})={len(mature_keys):,} | 3g(>={eff_g3})={len(g3_keys):,} | "
+            f"xgram_top80={len(xgram_hi_words):,}/{V:,}"
         )
-    return CountData(V, hi_keys, mid_keys, g3_keys, mature_keys, all_keys, all_counts, eff_hi, eff_mid, eff_g3)
+    return CountData(V, hi_keys, mid_keys, g3_keys, mature_keys, all_keys, all_counts,
+                     eff_hi, eff_mid, eff_g3, xgram_hi_words=xgram_hi_words)
 
 
 def _lookup_pair_ids(tokens: np.ndarray, keys: np.ndarray, V: int) -> np.ndarray:
@@ -295,12 +313,14 @@ def make_train_ids(tokens: np.ndarray, cd: CountData, V: int, cfg: dict) -> dict
 
 
 class MemoryBank(nn.Module):
-    """Word / hashed-pair / tiered-pair memory bank."""
+    """Word / xgram frequency-split / hashed-pair / tiered-pair memory bank."""
 
     def __init__(self, V: int, d_mem: int, mode: str = "tiered",
                  n_hi: int = 0, n_mid: int = 0, n_3g: int = 0,
                  pair_rows: int = 1_000_000, gate_mode: str = "tier",
-                 mid_rank: int | None = None):
+                 mid_rank: int | None = None,
+                 xgram_hi_words: np.ndarray | None = None,
+                 n_w_hi: int | None = None):
         super().__init__()
         self.V = V
         self.d_mem = d_mem
@@ -310,9 +330,38 @@ class MemoryBank(nn.Module):
         self.pair_rows = pair_rows
         self.mid_rank = mid_rank or max(4, d_mem // 4)
 
-        self.ve_word = nn.Parameter(torch.randn(V, d_mem) * d_mem ** -0.5)
+        self.ve_word = None
+        self.ve_word_hi = self.ve_word_lo = self.ve_word_proj = None
         self.ve_pair = None
         self.ve_hi = self.ve_mid_a = self.ve_mid_p = self.ve_3g = None
+
+        if mode == "xgram":
+            if n_w_hi is not None:
+                n_hi_w = max(1, min(int(n_w_hi), max(1, V - 1)))
+                is_hi = np.zeros(V, dtype=bool)
+                is_hi[:n_hi_w] = True
+            else:
+                hi_ids = np.asarray(
+                    xgram_hi_words if xgram_hi_words is not None else np.arange(max(1, min(V // 20, max(1, V - 1)))),
+                    dtype=np.int64,
+                )
+                is_hi = np.zeros(V, dtype=bool)
+                is_hi[hi_ids[(hi_ids >= 0) & (hi_ids < V)]] = True
+                n_hi_w = int(is_hi.sum())
+            n_lo_w = max(1, V - n_hi_w)
+            slots = np.zeros(V, dtype=np.int64)
+            slots[is_hi] = np.arange(n_hi_w, dtype=np.int64)
+            slots[~is_hi] = np.arange(V - n_hi_w, dtype=np.int64)
+            self.register_buffer("xgram_is_hi", torch.from_numpy(is_hi), persistent=True)
+            self.register_buffer("xgram_slot", torch.from_numpy(slots), persistent=True)
+
+            w_rank = max(4, d_mem // 4)
+            self.ve_word_hi = nn.Parameter(torch.randn(n_hi_w, d_mem) * d_mem ** -0.5)
+            self.ve_word_lo = nn.Parameter(torch.randn(n_lo_w, w_rank) * w_rank ** -0.5)
+            self.ve_word_proj = nn.Linear(w_rank, d_mem, bias=False)
+            nn.init.normal_(self.ve_word_proj.weight, std=(w_rank * d_mem) ** -0.5)
+        elif mode != "none":
+            self.ve_word = nn.Parameter(torch.randn(V, d_mem) * d_mem ** -0.5)
 
         if mode == "hash":
             self.ve_pair = nn.Parameter(torch.randn(pair_rows, d_mem) * d_mem ** -0.5)
@@ -322,7 +371,7 @@ class MemoryBank(nn.Module):
             self.ve_mid_p = nn.Parameter(torch.randn(self.mid_rank, d_mem) * (self.mid_rank * d_mem) ** -0.5)
             if n_3g > 0:
                 self.ve_3g = nn.Parameter(torch.randn(n_3g + 1, d_mem) * d_mem ** -0.5)
-        elif mode != "word":
+        elif mode not in ("word", "xgram", "none"):
             raise ValueError(f"Unknown memory mode: {mode}")
 
         with torch.no_grad():
@@ -332,16 +381,26 @@ class MemoryBank(nn.Module):
 
         self.b5_logits = nn.Parameter(torch.zeros(5)) if gate_mode == "bucket5" else None
 
+    def word_table_params(self):
+        return [p for p in (self.ve_word, self.ve_word_hi, self.ve_word_lo) if p is not None]
+
     def table_params(self):
-        ps = [self.ve_word]
+        ps = self.word_table_params()
         for p in (self.ve_pair, self.ve_hi, self.ve_mid_a, self.ve_mid_p, self.ve_3g):
             if p is not None:
                 ps.append(p)
         return ps
 
     def lookup(self, ids, hi_id=None, mid_id=None, g3_id=None, mature_mask=None, bucket_id=None):
-        w = self.ve_word[ids]
-        if self.mode == "word":
+        if self.mode == "xgram":
+            hi_mask = self.xgram_is_hi[ids]
+            slot = self.xgram_slot[ids]
+            w_hi = self.ve_word_hi[torch.where(hi_mask, slot, 0)]
+            w_lo = self.ve_word_proj(self.ve_word_lo[torch.where(hi_mask, 0, slot)])
+            return torch.where(hi_mask.unsqueeze(-1), w_hi.to(w_lo.dtype), w_lo), None
+
+        w = self.ve_word[ids] if self.ve_word is not None else None
+        if self.mode in ("word", "none"):
             return w, None
         if self.mode == "hash":
             # Compute fast hash_id directly on GPU
@@ -360,6 +419,51 @@ class MemoryBank(nn.Module):
         elif self.gate_mode == "bucket5" and bucket_id is not None:
             p = p * torch.sigmoid(self.b5_logits[bucket_id]).unsqueeze(-1).to(p.dtype)
         return w, p
+
+
+class EngramModule(nn.Module):
+    """Multi-head hashed 2/3-gram Engram conditional memory (key/value proj, context gate, causal conv)."""
+
+    def __init__(self, V: int, d: int, d_mem: int, pair_rows: int = 1_000_000, n_heads: int = 4):
+        super().__init__()
+        self.V = V
+        self.K = min(n_heads, max(1, d_mem // 4))
+        self.ng_n = max(1, pair_rows // 2)
+        self.ng_dim = max(4, d_mem // self.K)
+        concat_dim = 2 * self.K * self.ng_dim
+
+        self.ng2 = nn.Parameter(torch.randn(self.K, self.ng_n, self.ng_dim) * d ** -0.5)
+        self.ng3 = nn.Parameter(torch.randn(self.K, self.ng_n, self.ng_dim) * d ** -0.5)
+        self.ngk = nn.Linear(concat_dim, d, bias=False)
+        self.ngv = nn.Linear(concat_dim, d, bias=False)
+        nn.init.normal_(self.ngk.weight, std=(2 * d) ** -0.5)
+        nn.init.normal_(self.ngv.weight, std=(2 * d) ** -0.5)
+        self.ngc = nn.Parameter(torch.zeros(d, 1, 4))
+
+        self.register_buffer("hk", torch.arange(self.K, dtype=torch.long), persistent=False)
+        m1 = [1000003, 998244353, 754974721, 167772161][:self.K]
+        m2 = [7919, 104729, 1299709, 15485863][:self.K]
+        self.register_buffer("m1", torch.tensor(m1, dtype=torch.long), persistent=False)
+        self.register_buffer("m2", torch.tensor(m2, dtype=torch.long), persistent=False)
+
+    def table_params(self):
+        return [self.ng2, self.ng3]
+
+    def forward(self, x: torch.Tensor, ids: torch.Tensor, escale: float) -> torch.Tensor:
+        p1 = F.pad(ids, (1, 0), value=self.V)[:, :-1]
+        p2 = F.pad(ids, (2, 0), value=self.V)[:, :-2]
+        h2 = (p1.unsqueeze(-1) * self.m1 + ids.unsqueeze(-1) * self.m2 + self.hk) % self.ng_n
+        h3 = (p2.unsqueeze(-1) * (self.m2 * 31) + p1.unsqueeze(-1) * self.m1 + ids.unsqueeze(-1) * self.m2 + self.hk * 7) % self.ng_n
+        e = torch.cat([self.ng2[self.hk, h2].flatten(-2), self.ng3[self.hk, h3].flatten(-2)], dim=-1)
+        kk, vv = self.ngk(e), self.ngv(e)
+        gate = torch.sigmoid(
+            (F.rms_norm(x.float(), (x.shape[-1],)) * F.rms_norm(kk.float(), (kk.shape[-1],))).sum(-1, keepdim=True)
+            / (x.shape[-1] ** 0.5)
+        )
+        v = (gate * vv.float()).to(x.dtype)
+        vn = F.rms_norm(v, (v.shape[-1],)).transpose(1, 2)
+        c = F.conv1d(F.pad(vn, (9, 0)), self.ngc.to(vn.dtype), dilation=3, groups=v.shape[-1]).transpose(1, 2)
+        return x + (F.silu(c) + v) * escale
 
 
 # ---------------------------------------------------------------------------
@@ -387,7 +491,7 @@ class Block(nn.Module):
         self.gate, self.up, self.down = nn.Linear(d, f, bias=False), nn.Linear(d, f, bias=False), nn.Linear(f, d, bias=False)
 
         has_mem = (memory is not None) or shared
-        has_pair = ((memory is not None and memory.mode != "word")
+        has_pair = ((memory is not None and memory.mode not in ("word", "xgram", "none"))
                     or (shared and shared_has_pair))
         self.lam_w = nn.Parameter(torch.tensor(1.0)) if has_mem else None
         self.lam_p = nn.Parameter(torch.tensor(1.0)) if has_pair else None
@@ -462,7 +566,10 @@ class Model(nn.Module):
                  n_hi: int = 0, n_mid: int = 0, n_3g: int = 0,
                  pair_rows: int = 1_000_000, gate_mode: str = "tier",
                  use_ctx_gate: bool = False, inject_res: bool = False,
-                 pre_head_mem: bool = False, share_bank_across_layers: bool = False):
+                 pre_head_mem: bool = False, share_bank_across_layers: bool = False,
+                 use_engram: bool = False,
+                 xgram_hi_words: np.ndarray | None = None,
+                 n_w_hi: int | None = None):
         super().__init__()
         self.V, self.d = V, d
         self.arm = arm
@@ -477,20 +584,23 @@ class Model(nn.Module):
         nn.init.normal_(self.emb.weight, std=0.02)
         nn.init.normal_(self.head.weight, std=0.02)
 
+        self.engram = EngramModule(V, d, d_mem, pair_rows) if use_engram else None
         self.bank = None
         if self.shared:
-            self.bank = MemoryBank(V, d_mem, memory_mode, n_hi, n_mid, n_3g, pair_rows, gate_mode)
+            self.bank = MemoryBank(V, d_mem, memory_mode, n_hi, n_mid, n_3g, pair_rows, gate_mode,
+                                   xgram_hi_words=xgram_hi_words, n_w_hi=n_w_hi)
         self.blocks = nn.ModuleList()
         for i in range(layers):
             active = i in self.ve_layers
             local = None
             if active and not self.shared:
-                local = MemoryBank(V, d_mem, memory_mode, n_hi, n_mid, n_3g, pair_rows, gate_mode)
+                local = MemoryBank(V, d_mem, memory_mode, n_hi, n_mid, n_3g, pair_rows, gate_mode,
+                                   xgram_hi_words=xgram_hi_words, n_w_hi=n_w_hi)
             self.blocks.append(Block(
                 d, heads, rope,
                 memory=local,
                 shared=self.shared and active,
-                shared_has_pair=(self.bank is not None and self.bank.mode != "word"),
+                shared_has_pair=(self.bank is not None and self.bank.mode not in ("word", "xgram", "none")),
                 d_mem=d_mem,
                 use_ctx_gate=use_ctx_gate and active,
                 inject_res=inject_res and active,
@@ -505,6 +615,8 @@ class Model(nn.Module):
 
     def forward(self, ids, targets=None, hi_id=None, mid_id=None, g3_id=None, mature_mask=None, bucket_id=None):
         x = self.emb(ids) * self.escale
+        if self.engram is not None:
+            x = self.engram(x, ids, self.escale)
         shared_vecs = None
         if self.shared:
             shared_vecs = self.bank.lookup(
@@ -544,34 +656,45 @@ def arm_config(arm: str, layers: int, d: int, d_mem: int):
     all_layers = tuple(range(layers))
     if arm in ("plain", "plain_eq_weights"):
         return dict(ve_layers=(), memory_mode="word", shared=False, d_mem=d,
-                    gate_mode="none", ctx_gate=False, inject_res=False, prehead=False, use_3g=False)
+                    gate_mode="none", ctx_gate=False, inject_res=False, prehead=False, use_3g=False, use_engram=False)
     if arm == "word":
         # Local full-d word value embedding (matches Bank of Values without projection bottleneck)
         return dict(ve_layers=last2, memory_mode="word", shared=False, d_mem=d,
-                    gate_mode="none", ctx_gate=False, inject_res=False, prehead=False, use_3g=False)
+                    gate_mode="none", ctx_gate=False, inject_res=False, prehead=False, use_3g=False, use_engram=False)
+    if arm == "xgram":
+        # Frequency-split word table: full-d rows for top 80% token cover, d/4 rows + shared projection for tail
+        return dict(ve_layers=last2, memory_mode="xgram", shared=False, d_mem=d,
+                    gate_mode="none", ctx_gate=False, inject_res=False, prehead=False, use_3g=False, use_engram=False)
+    if arm == "engram":
+        # Multi-head hashed 2/3-gram Engram conditional memory with K/V projections, context gate & causal conv
+        return dict(ve_layers=(), memory_mode="none", shared=False, d_mem=d_mem,
+                    gate_mode="none", ctx_gate=False, inject_res=False, prehead=False, use_3g=False, use_engram=True)
     if arm == "hard_stack":
         # Use d_mem with a projection: a full-d 1M-row pair table would be ~1.5B
         # parameters in two layers and would not fit the intended table budget.
         return dict(ve_layers=last2, memory_mode="hash", shared=False, d_mem=d_mem,
-                    gate_mode="none", ctx_gate=False, inject_res=False, prehead=False, use_3g=False)
+                    gate_mode="none", ctx_gate=False, inject_res=False, prehead=False, use_3g=False, use_engram=False)
     if arm == "mp_ve":
         return dict(ve_layers=last2, memory_mode="tiered", shared=True, d_mem=d_mem,
-                    gate_mode="tier", ctx_gate=False, inject_res=False, prehead=False, use_3g=False)
+                    gate_mode="tier", ctx_gate=False, inject_res=False, prehead=False, use_3g=False, use_engram=False)
     if arm == "u1":
         return dict(ve_layers=all_layers, memory_mode="tiered", shared=True, d_mem=d_mem,
-                    gate_mode="tier", ctx_gate=False, inject_res=False, prehead=False, use_3g=False)
+                    gate_mode="tier", ctx_gate=False, inject_res=False, prehead=False, use_3g=False, use_engram=False)
     if arm == "u123":
         return dict(ve_layers=all_layers, memory_mode="tiered", shared=True, d_mem=d_mem,
-                    gate_mode="tier", ctx_gate=True, inject_res=True, prehead=True, use_3g=True)
+                    gate_mode="tier", ctx_gate=True, inject_res=True, prehead=True, use_3g=True, use_engram=False)
+    if arm == "u123_no3g":
+        return dict(ve_layers=all_layers, memory_mode="tiered", shared=True, d_mem=d_mem,
+                    gate_mode="tier", ctx_gate=True, inject_res=True, prehead=True, use_3g=False, use_engram=False)
     if arm == "ctrl_word":
         return dict(ve_layers=all_layers, memory_mode="word", shared=True, d_mem=d_mem,
-                    gate_mode="none", ctx_gate=True, inject_res=True, prehead=True, use_3g=False)
+                    gate_mode="none", ctx_gate=True, inject_res=True, prehead=True, use_3g=False, use_engram=False)
     if arm == "ctrl_hs":
         return dict(ve_layers=all_layers, memory_mode="hash", shared=True, d_mem=d_mem,
-                    gate_mode="none", ctx_gate=True, inject_res=True, prehead=True, use_3g=False)
+                    gate_mode="none", ctx_gate=True, inject_res=True, prehead=True, use_3g=False, use_engram=False)
     if arm == "ctrl_hs_pruned":
         return dict(ve_layers=all_layers, memory_mode="hash", shared=True, d_mem=d_mem,
-                    gate_mode="tier", ctx_gate=True, inject_res=True, prehead=True, use_3g=False)
+                    gate_mode="tier", ctx_gate=True, inject_res=True, prehead=True, use_3g=False, use_engram=False)
     raise ValueError(f"Unknown arm: {arm}")
 
 
@@ -584,6 +707,8 @@ def build_optimizers(model: Model, args):
     tables = []
     if model.bank is not None:
         tables.extend(model.bank.table_params())
+    if model.engram is not None:
+        tables.extend(model.engram.table_params())
     for blk in model.blocks:
         if blk.memory is not None:
             tables.extend(blk.memory.table_params())
@@ -595,7 +720,7 @@ def build_optimizers(model: Model, args):
     for n, p in model.named_parameters():
         if not p.requires_grad or id(p) in table_ids:
             continue
-        if p.ndim == 2 and (n.startswith("blocks") or n.startswith("head_proj") or n.startswith("head_gate")):
+        if p.ndim == 2 and (n.startswith("blocks") or n.startswith("head_proj") or n.startswith("head_gate") or n.startswith("engram")):
             mats.append(p)
     mat_ids = {id(p) for p in mats}
     rest = [p for p in model.parameters() if p.requires_grad and id(p) not in table_ids and id(p) not in mat_ids]
@@ -604,8 +729,10 @@ def build_optimizers(model: Model, args):
         Muon(mats, lr=args.lr_muon),
         torch.optim.AdamW([dict(params=rest, lr=args.lr_adam, weight_decay=0.0)], betas=(0.9, 0.95)),
     ]
-    word_tabs = [p for p in tables if p is getattr(model.bank, "ve_word", None)] if model.bank is not None else []
-    word_tabs += [blk.memory.ve_word for blk in model.blocks if blk.memory is not None]
+    word_tabs = model.bank.word_table_params() if model.bank is not None else []
+    for blk in model.blocks:
+        if blk.memory is not None:
+            word_tabs.extend(blk.memory.word_table_params())
     word_ids = {id(p) for p in word_tabs}
     pair_tabs = [p for p in tables if id(p) not in word_ids]
     if word_tabs:
@@ -733,7 +860,8 @@ def make_stream(args):
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--arm", default="u123",
-                   choices=["plain", "plain_eq_weights", "word", "hard_stack", "mp_ve", "u1", "u123",
+                   choices=["plain", "plain_eq_weights", "word", "xgram", "engram",
+                            "hard_stack", "mp_ve", "u1", "u123", "u123_no3g",
                             "ctrl_word", "ctrl_hs", "ctrl_hs_pruned"])
     p.add_argument("--data-dir", default="data")
     p.add_argument("--val-shard", default=None)
@@ -854,12 +982,16 @@ def main():
         gate_mode=cfg["gate_mode"], use_ctx_gate=cfg["ctx_gate"],
         inject_res=cfg["inject_res"], pre_head_mem=cfg["prehead"],
         share_bank_across_layers=cfg["shared"],
+        use_engram=cfg.get("use_engram", False),
+        xgram_hi_words=cd.xgram_hi_words,
     ).to(device)
 
     nparam = sum(p.numel() for p in model.parameters())
     tables_n = 0
     if model.bank is not None:
         tables_n += sum(p.numel() for p in model.bank.table_params())
+    if model.engram is not None:
+        tables_n += sum(p.numel() for p in model.engram.table_params())
     for blk in model.blocks:
         if blk.memory is not None:
             tables_n += sum(p.numel() for p in blk.memory.table_params())

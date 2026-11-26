@@ -1,275 +1,129 @@
-# Phase-2 handoff: 125M × 2.5B downstream + missing baselines (medium budget)
+# Phase-2 & ICML Submission Master Handoff: `125M × 2.5B` Baselines, Ablations & Downstream Eval
 
 **Date:** 2026-11-26  
-**Scope:** close the three holes left by phase 1: (1) no downstream evaluation,
-(2) no Engram / X-GRAM / equal-active-FLOPs baselines, (3) one-seed
-`plain_eq_weights` and `ctrl_word`.
-**Budget:** ~250–350 GPU-hours on 4×H20/4090 (3–4 days); ~$400–900.
+**Code Status:** All Phase-2 arms (`engram`, `xgram`, `u123_no3g`, `plain184`, `mp_ve`), `CountData` exporter (`experiments/save_counts_125m.py`), batched `lm-eval` + bucketed-accuracy wrapper (`experiments/eval_lm.py`), and launcher (`experiments/run_phase2_125m.sh`) are implemented and ready.  
+**Cloud Budget:** Full matrix ~250–350 GPU·h on 4×H20/4090 (~3–4 days, `$400–900`); **Minimum ICML-ready core** (P0 + downstream) ~160–200 GPU·h. Downstream evaluation on existing Phase-1 checkpoints can also run at **\$0** on a local 8 GB GPU (`--batch_size 1`).
 
 ---
 
-## 1. What phase 1 already established
+## 1. What Phase 1 Already Established (`125M × 2.5B`, 20 runs)
 
-125M × 2.5B, 3 seeds, 2500M val (lower is better):
+| Arm | Seeds | Total / Body / Table | Mean 2500M Val Loss | B16 Infer (tok/s) | Role in Paper |
+|---|---:|---|---:|---:|---|
+| `plain` | 3 | 162.2M / 162.2M / 0 | `3.3488 ± 0.0027` | 380K–383K | Base equal-depth/width |
+| `word` | 3 | 239.3M / 162.2M / 77.2M | `3.2896 ± 0.0019` | 377K–379K | Full-`d` last-2 BoV baseline |
+| `ctrl_word` | 1 | 194.7M / 181.8M / 12.9M | `3.2902` | 323K | Adapter-only control (`−0.0009` vs word) |
+| `ctrl_hs` | 3 | 453.1M / 184.2M / 268.9M | `3.2753 ± 0.0010` | 315K–317K | Hashed pair + adapters |
+| `ctrl_hs_pruned` | 3 | 453.1M / 184.2M / 268.9M | `3.2713 ± 0.0010` | 314K–319K | + maturity pruning (co-main baseline) |
+| `u1` | 3 | 403.8M / 166.9M / 236.9M | `3.2628 ± 0.0006` | **351K–353K** | Low-latency adapter-free tiered |
+| **`u123`** | **3** | **459.5M / 184.2M / 275.3M** | **`3.2415 ± 0.0028`** | **313K–315K** | **Main exact-tiered architecture** |
+| `plain_eq_weights` | 1 | 459.7M / 459.7M / 0 | `3.1682` | 186K | Dense upper bound (wins at 2.5B) |
 
-| Arm | mean 2500M val | note |
-|---|---:|---|
-| `plain` (162M body) | 3.3488 | base width/depth |
-| `word` (full-d last-2) | 3.2896 | BoV-style |
-| `ctrl_hs` (hashed pair + adapters) | 3.2753 | architecture control |
-| `ctrl_hs_pruned` | 3.2713 | + pruning |
-| **`u123`** | **3.2415** | main |
-| `u1` | 3.2628 | low-latency |
-| `plain_eq_weights` (459.7M body) | 3.1682 | 1 seed |
-| `ctrl_word` (181.8M body, word only) | 3.2902 | 1 seed |
-
-Clean additive decomposition at 2.5B:
-
-```
-word − plain              = 0.0592
-ctrl_hs − word            = 0.0143   (shared multi-layer memory)
-ctrl_hs_pruned − ctrl_hs  = 0.0040   (pruning)
-u123 − ctrl_hs_pruned     = 0.0298   (exact 2g/3g tiering; t=15.9, p=0.0039)
-u123 − plain              = 0.1073   (exact sum)
-```
-
-Boundaries already known:
-- `plain_eq_weights` beats `u123` by 0.0733 at 2.5B; crossover ~250–500M.
-  **Claim only equal active FLOPs / compute-limited inference.**
-- `u123` body is 184.2M vs `plain` 162.2M (+13.6% adapters). `ctrl_word`
-  (181.8M body, word-only) is 3.2902 vs `word` 3.2896: adapters alone do not
-  help. A **plain at ~184M body is still missing** for a clean equal-FLOPs
-  baseline.
-- The 30M `fullmid` experiment did **not** significantly beat `ctrl_hs_pruned`
-  (3 seeds, +0.0118, t=1.25). The 125M `u123` uses the **old low-rank mid** and
-  wins. **Do not port fullmid blindly; it is optional, not required.**
+Clean additive decomposition at 2.5B (3-seed paired stats):
+- `u123` beats `ctrl_hs_pruned` across **all 3 seeds, all 6 milestones (`50M–2500M`), and all 4 frequency buckets**: **`-0.02982 ± 0.00325` (`t = -15.885, p = 0.0039`)**.
+- Why `125M` cleanly wins while `30M` tied (`+0.0118, t=+1.25`): `30M` hashed `mid`, whereas `train_125m.py` uses **collision-free exact key lookup** (`cd.hi_keys`, `cd.mid_keys`, `cd.g3_keys`) across all tiers even with `mid_rank = 64` (validating the Model-2 / `test2b` high-`U(T)/M` collision scaling prediction).
+- Boundaries to keep strictly honest:
+  1. `plain_eq_weights` (`3.1682`) beats `u123` by `~0.0759` (seed 0) at 2.5B; crossover sits at `250M–500M`. Claim **Equal Active FLOPs / Throughput Pareto Frontier** (~70–90% faster `B16` inference than `plain_eq_weights`), **not** Equal Total Weights.
+  2. `u123` body is `184.2M` vs `plain` `162.2M`; hence **`plain184`** (`--d 832 --heads 13`) is P0 in Phase 2.
 
 ---
 
-## 2. Experiments to run
+## 2. Newly Implemented Phase-2 Arms in `train_125m.py`
 
-| Priority | Arm / run | Seeds | Tokens | Est. GPU·h | Status |
-|---|---|---|---:|---:|---:|
-| P0 | `engram` (full design: 2/3-gram, K hash heads, key/value maps, context gate, conv) | 3 | 2.5B | 30–36 | **to implement/port** |
-| P0 | `plain_eqFLOPs` (`d=832, H=13`, body ≈183M) | 3 | 2.5B | 36 | no code change; verify body |
-| P0 | `plain_eq_weights` seeds 1,2 | 2 | 2.5B | 40–48 | command ready |
-| P0 | `ctrl_word` seeds 1,2 | 2 | 2.5B | 20 | command ready |
-| P0 | `lm-eval` on 2500M checkpoints: `plain`, `word`, `u123`, `ctrl_hs_pruned` | 3 each | — | 15–25 | **wrapper to implement** |
-| P1 | `xgram` (frequency-split word table: full rows for top-cover words, short rows for the rest) | 3 | 2.5B | 30 | **to implement** |
-| P1 | `mp_ve` (original tiered, shared last-2, no gates/prehead/3g) | 3 | 2.5B | 30 | arm exists |
-| P1 | `lm-eval` on `u1`, `ctrl_hs`, `plain_eq_weights`, `ctrl_word` | 3 each | — | 20–30 | wrapper |
-| P2 | `u123_no3g` (isolate 3-gram contribution) | 2 | 2.5B | 20 | small code change |
-| P2 | bucket-wise next-token accuracy (FineWeb val) | — | — | <2 | cheap; do with lm-eval |
-| P2 | MWE / idiom completion (custom) | — | — | 5–10 | optional |
+All three missing arms are now implemented directly in [train_125m.py](file:///C:/Users/ROG/Desktop/ICML/train_125m.py):
 
-Total: **~250–350 GPU·h** including reruns. On 4×H20 ≈ 65–90 h wall clock
-(3–4 days). On 4×4090 (48GB) ≈ 80–110 h (3.5–4.5 days).
-
-If the budget is tighter, the **minimum** is:
-`engram` + `plain_eqFLOPs` + `plain_eq_weights` seeds 1/2 + `ctrl_word` seeds
-1/2 + lm-eval on 4 arms. That is ~180–220 GPU·h.
+1. **`--arm engram` (`EngramModule`)**:
+   - Ported faithfully from [diag_week1.py](file:///C:/Users/ROG/Desktop/ICML/experiments/diag_week1.py#L247-L296) / [run_local_suite.py](file:///C:/Users/ROG/Desktop/ICML/experiments/run_local_suite.py#L268-L338).
+   - Multi-head hashed 2-gram (`ng2`) + 3-gram (`ng3`) tables with `K=4` hash heads per order (`ng_n = pair_rows // 2 = 500,000`, `ng_dim = d_mem // 4 = 64` -> **`256.0M` table params**, matched to `ctrl_hs` `256.0M` pair table and comparable to `u123` `262.4M` n-gram table), concatenated K/V linear projections (`512 -> d=768`), RMSNorm cosine context gate, and zero-initialized causal dilated depthwise convolution (`kernel_size=4, dilation=3, groups=d`, `SiLU(c) + v`), injected before block 0.
+2. **`--arm xgram` (`MemoryBank(mode="xgram")`)**:
+   - Frequency-split word value table computed from the exact same `count_tokens` prefix (`compute_xgram_hi_words` in `build_counts`, persisted via `xgram_hi_words` in `CountData` and checkpoint `xgram_is_hi` / `xgram_slot` buffers).
+   - Top words covering `80%` of prefix tokens get full-width `d` (`768`) rows; the tail vocabulary gets `d // 4` (`192`) rows + a learned `Linear(d//4, d, bias=False)` projection (`ve_word_proj`, optimized by Muon). Tests adaptive per-word capacity allocation (Baevski & Auli-style) against `word` and `u123`.
+3. **`--arm u123_no3g`**:
+   - Identical to `u123` (`tiered` exact `hi` + `mid`, shared across all 12 layers, context gate + residual injection + pre-head readout) with `use_3g=False`. Directly isolates the causal marginal contribution of exact 3-grams (`u123` vs `u123_no3g` vs `u1`) at `125M × 2.5B`.
 
 ---
 
-## 3. Implementation tasks before any GPU run
+## 3. Recommended Downstream Suite (`125M × 2.5B` Optimal Selection)
 
-### 3.1 Save the exact `CountData` (blocking for lm-eval)
+At `125M–184M` body × `2.5B` FineWeb tokens, tasks whose random-guessing floor dominates (e.g., `mmlu` ~25%, `gsm8k` ~0%, `arc_challenge`) hide real architectural differences under floor noise. Use the following **6-task 0-shot suite** (all implemented in `experiments/eval_lm.py`, evaluated strictly inside `--max_length 512` to match trained RoPE range):
 
-The memory tables are indexed by IDs derived from the **first 250M training
-tokens**. A checkpoint cannot be evaluated with a different count prefix.
+| Task | Metric | Random Floor | Expected 125M Range | Why Essential for This Paper |
+|---|---|---:|---|---|
+| **`lambada_openai`** | `acc`, `perplexity` | ~0% | `25%–45%` | Exact final-word completion; directly tests multi-token & phrase recall from N-gram tables. |
+| **`wikitext`** | `word_perplexity` | — | — | Cross-domain generalization (FineWeb train -> Wikipedia eval); refutes "table only overfits FineWeb prefix". |
+| **`piqa`** | `acc`, `acc_norm` | 50% | `60%–65%` | Stable physical commonsense; low seed variance at 125M. |
+| **`arc_easy`** | `acc`, `acc_norm` | 25% | `40%–48%` | Clean scientific fact/concept recall; separates capacity-augmented models. |
+| **`sciq`** | `acc`, `acc_norm` | 25% | `58%–68%` | High SNR (~1,000 questions, <2 min); tests domain terminology & lexical knowledge lookup. |
+| **`hellaswag`** | `acc`, `acc_norm` | 25% | `28%–33%` | Standard pretraining benchmark expected by ICML reviewers (slower: ~40k requests). |
 
-Implemented: `experiments/save_counts_125m.py`. It calls the same
-`build_counts` and writes:
+Plus **zero-extra-code FineWeb Diagnostic (`--verify-val-shard`)**:
+- Computes **per-frequency-bucket Top-1 next-token accuracy** (`acc_pc_0`, `acc_pc_2`, `acc_pc_3`, `acc_pc_4`) alongside cross-entropy loss, directly verifying that tiered lookup converts lower cross-entropy into higher exact next-word accuracy across rare and frequent buckets without hurting `pc_0`.
 
-```python
-np.savez_compressed(
-    "results/countdata_125m.npz",
-    hi_keys=cd.hi_keys, mid_keys=cd.mid_keys, g3_keys=cd.g3_keys,
-    mature_keys=cd.mature_keys, all_keys=cd.all_keys, all_counts=cd.all_counts,
-    eff_hi=cd.eff_hi, eff_mid=cd.eff_mid, eff_g3=cd.eff_g3,
-    count_tokens=args.count_tokens,
-)
-```
+---
 
-Run it on the same 26 shards before lm-eval. **Every eval must load this file.**
+## 4. ICML Submission Experiment Matrix & Priorities
 
-### 3.2 Port Engram into `train_125m.py`
+| Priority | Experiment / Arm | Runs / Seeds | Execution | Est. GPU·h | What Reviewer Question It Closes |
+|---|---|---|---|---:|---|
+| **P0** | **`engram`** (`K=4`, 2/3g, gate, conv) | 3 × 2.5B | Cloud | 30–36 | Head-to-head vs real Engram architecture at matched table budget. |
+| **P0** | **`plain184`** (`--d 832 --heads 13`, ~183.2M body) | 3 × 2.5B | Cloud | 36 | Exact equal-active-FLOPs dense control matching `u123`'s `184.2M` body. |
+| **P0** | **`plain_eq_weights`** (seeds `1, 2`) | 2 × 2.5B | Cloud | 14 | 3-seed variance on the dense equal-weights upper bound (`3.1682`). |
+| **P0** | **Downstream 6-task 0-shot** on core Phase-1 (`plain`, `word`, `u123`, `ctrl_hs_pruned`, `u1`) + Phase-2 (`engram`, `plain184`, `plain_eq_weights`) | All seeds | **Local 8GB (\$0)** or Cloud | 10–20 | Proves FineWeb loss gains transfer to real downstream tasks & out-of-domain PPL. |
+| **P1** | **`xgram`** (80%-cover frequency-split word) | 3 × 2.5B | Cloud | 30 | Rules out "simple frequency-split unigram compression is enough". |
+| **P1** | **`ctrl_word`** (seeds `1, 2`) | 2 × 2.5B | Cloud | 8 | 3-seed proof that adapter compute alone (`181.8M` body) adds `~0` at `2.5B`. |
+| **P1** | **`mp_ve`** (last-2 shared tiered, no gate/3g) | 3 × 2.5B | Cloud | 30 | Connects `V=6,000` `MP-VE` prototype to `125M` `u1` / `u123` scaling path. |
+| **P1** | **FineWeb Bucket Top-1 Accuracy** (`pc_0/2/3/4`) | 1 pass/ckpt | **Local (\$0)** or Cloud | <1 | Shows accuracy + loss decomposition across sighting tiers. |
+| **P2** | **`u123_no3g`** (3 seeds, `RUN_P2_ABLATIONS=1`) | 3 × 2.5B | Cloud | 15–18 | Isolates exact 3-gram gain (`u123` vs `u123_no3g` vs `u1`) at `125M`. |
 
-The existing `ctr_hs` is **not** Engram. Port the full design from
-`experiments/run_v50257_bridge.py` / `run_local_suite.py`:
-- 2-gram and 3-gram hashed tables, K hash heads per order;
-- key/value projections, context gate (`sigmoid(rmsnorm(h)·rmsnorm(k))`);
-- causal depthwise conv;
-- same body width/depth as `u123`; table budget reported.
-Run `--smoke` + a 25-step real-dimension probe before the full run.
+*(Total if running everything including P2 on 4×H20/4090: ~200–250 GPU·h ≈ 2.5–3 days. Tight budget `P0`-only run: `RUN_P2_ABLATIONS=0` plus skipping `mp_ve` cuts ~60 GPU·h.)*
 
-### 3.3 Add X-GRAM-style `xgram` arm
+---
 
-Frequency-split word table: full `d_mem` rows for the top words covering 80% of
-text, short (`d_mem/4`) rows plus a shared projection for the rest. This is the
-closest published prior; it is not `word` (all full) and not `ctrl_word`
-(adapters only).
+## 5. Paper Completeness Checklist for ICML Submission
 
-### 3.4 Equal-active-FLOPs plain
+To lock in a clean main-conference ICML submission, make sure the final manuscript (`ICML_Research_Proposal_v5.tex` -> camera-ready draft) contains these 6 evidence blocks:
 
-Use `--arm plain --d 832 --heads 13`. Expected body ≈183M (vs `u123` 184.2M).
-Verify with the `[model] body=` line; if off by >5%, adjust `d` to 824/840.
+1. **Empirical Scaling Law (`V=1,500–6,000` + `<UNK>` disentanglement)**: Word vs Pair crossover (`<100` vs `100–999` vs `1000+` non-`<UNK>`) + Round-30 held-out 5/5 prediction (`figs_v5/fig1_crossover`, `fig5_heldout`). *(Already done)*
+2. **Three Phenomenological Theory Tests (`results/theory_cstar_analysis.json`)**: KKT 3-tier capacity allocation, collision-load `M` sweep (`test2` & `test2b_pruned_M_sweep`), and inter-layer gradient cosine $\rho_{\ell,\ell'}$ depth sweep (`test3`). *(Already done)*
+3. **`V=50,257` Bridge & Collision Transition Diagnosis (`30M` -> `2.5B`)**: Reconciles why hashed-mid `U123_v2_fullmid` tied `CTRL_hs_pruned` at `30M` (`t=+1.25`), while exact-key tiered `u123` wins decisively at `2.5B` (`-0.02982, t=-15.885, p=0.0039`). *(Already done)*
+4. **Full `125M × 2.5B` Main Comparison + Causal Ablations (Phase 1 + Phase 2)**: `plain` vs `plain184` vs `word` vs `xgram` vs `ctrl_word` vs `ctrl_hs` vs `ctrl_hs_pruned` vs `engram` vs `u1` vs `u123_no3g` vs `u123` vs `plain_eq_weights` (3 seeds on all main arms, paired t-tests, additive decomposition). *(Phase 1 done; Phase 2 automated in `run_phase2_125m.sh`)*
+5. **Compute-Speed Pareto Frontier**: Val loss vs `B1` ms/seq and `B16` tok/s (`u1` +90% / `u123` +70% inference speed over `plain_eq_weights`, early-training crossover `<500M` tokens). *(Phase 1 done; `plain184` & `engram` added by Phase 2)*
+6. **Zero-Shot Downstream & Bucketed Accuracy Table**: 6-task suite (`lambada_openai`, `wikitext`, `piqa`, `arc_easy`, `sciq`, `hellaswag`) + FineWeb per-bucket accuracy (`eval_lm.py`). *(Ready to run locally on backed-up Phase-1 checkpoints or on cloud)*
 
-### 3.5 lm-eval wrapper
+---
 
-Draft implemented: `experiments/eval_lm.py` (`lm_eval.api.model.LM`). The
-`--dry-run` path was tested locally with a synthetic checkpoint (logits finite);
-the `loglikelihood` path still needs one cloud smoke test.
-- load `ckpt_2500M.pt`, rebuild `Model` from the checkpoint config + actual
-  table shapes;
-- load `results/countdata_125m.npz`; compute lookup IDs **only from the input
-  prefix** (never from target tokens);
-- GPT-2 tokenizer (`transformers.AutoTokenizer.from_pretrained("gpt2")`);
-- implement `loglikelihood`, `loglikelihood_rolling`, `generate_until`;
-- `--batch_size 1` on 8GB cards, 4–8 on 96GB cards.
+## 6. Execution Runbook (Copy-Paste Ready)
 
-Launcher: `experiments/run_phase2_125m.sh`. Engram/X-GRAM lines are commented
-out until those arms are implemented in `train_125m.py`.
+### Option A: Zero-Cost Local Downstream Eval (RTX 4070 8GB, using saved Phase-1 checkpoints)
+1. Ensure `runs_125m/<arm>_s<seed>/ckpt_2500M.pt`, `data/` (first 3 FineWeb train shards + val shard), and `pip install lm-eval transformers` are present locally.
+2. Export exact prefix counts:
+   ```bash
+   python experiments/save_counts_125m.py --data-dir ./data --count-tokens 250000000 --train-tokens 2500000000 --out results/countdata_125m.npz
+   ```
+3. Verify exact Phase-1 parity (`u123_s0` must match `val ≈ 3.24411`):
+   ```bash
+   python experiments/eval_lm.py --checkpoint runs_125m/u123_s0/ckpt_2500M.pt --countdata results/countdata_125m.npz --verify-val-shard data/fineweb_val_000000.bin --device cuda
+   ```
+4. Smoke-test `lm_eval` before full run, then evaluate (`--batch_size 1` or `2` on 8 GB):
+   ```bash
+   python experiments/eval_lm.py --checkpoint runs_125m/u123_s0/ckpt_2500M.pt --countdata results/countdata_125m.npz --tasks lambada_openai --limit 10 --batch_size 1
+   ```
 
-Run:
+### Option B: Full Cloud Phase-2 Suite (`4 × GPU`, `--micro-batch 16 --grad-accum 16`)
 ```bash
-lm_eval --model local-completions --model_args ... \
-  --tasks lambada_openai,wikitext,piqa,arc_easy,hellaswag \
-  --num_fewshot 0 --batch_size 4
-```
-(Use the harness's Python API or register a custom model; the wrapper is the
-only non-standard part.)
-
----
-
-## 4. Run order and commands
-
-### Wave 0 — probes (1 GPU, ~2 h)
-
-```bash
-# 10-arm smoke + zero-leakage invariance
-for arm in plain word mp_ve u123 ctrl_hs ctrl_hs_pruned ctrl_word u1; do
-  python train_125m.py --smoke --arm "$arm" --device cuda --out "/tmp/smoke_$arm"
-done
-
-# 25-step real-dimension probe for any new arm
-python train_125m.py --arm engram --data-dir ./data --count-tokens 50000000 \
-  --steps 25 --eval-tokens 3000000 --log-interval 5 --compile 1 --out /tmp/probe_engram
-python train_125m.py --arm xgram  --data-dir ./data --count-tokens 50000000 \
-  --steps 25 --eval-tokens 3000000 --log-interval 5 --compile 1 --out /tmp/probe_xgram
-python train_125m.py --arm plain --d 832 --heads 13 --data-dir ./data \
-  --count-tokens 50000000 --steps 25 --eval-tokens 3000000 --log-interval 5 \
-  --compile 1 --out /tmp/probe_plain184
+# Runs download -> save_counts -> 12-arm smoke + 25-step probes -> Phase-1 CountData gate -> Waves 1-4 -> 6-task lm-eval + bucket accuracy
+bash experiments/run_phase2_125m.sh
+# Or skip already-downloaded shards / skip P2 u123_no3g:
+SKIP_DOWNLOAD=1 RUN_P2_ABLATIONS=0 bash experiments/run_phase2_125m.sh
 ```
 
-Gate: no NaN, `peak_vram_gb < 0.8 × GPU_VRAM`, `tok/s` within 20% of the
-phase-1 probe.
-
-### Wave 1 — new baselines, seed 0 (4 GPUs)
-
-```bash
-CUDA_VISIBLE_DEVICES=0 python train_125m.py --arm engram --seed 0 --data-dir ./data --train-tokens 2500000000 --compile 1 --out runs_125m/engram_s0 &
-CUDA_VISIBLE_DEVICES=1 python train_125m.py --arm plain --d 832 --heads 13 --seed 0 --data-dir ./data --train-tokens 2500000000 --compile 1 --out runs_125m/plain184_s0 &
-CUDA_VISIBLE_DEVICES=2 python train_125m.py --arm xgram --seed 0 --data-dir ./data --train-tokens 2500000000 --compile 1 --out runs_125m/xgram_s0 &
-CUDA_VISIBLE_DEVICES=3 python train_125m.py --arm mp_ve --seed 0 --data-dir ./data --train-tokens 2500000000 --compile 1 --out runs_125m/mpve_s0 &
-wait
-```
-
-### Wave 2 — seeds 1/2 for new baselines + missing seeds
-
-```bash
-for sd in 1 2; do
-  CUDA_VISIBLE_DEVICES=0 python train_125m.py --arm engram --seed "$sd" ... --out runs_125m/engram_s$sd &
-  CUDA_VISIBLE_DEVICES=1 python train_125m.py --arm plain --d 832 --heads 13 --seed "$sd" ... --out runs_125m/plain184_s$sd &
-  CUDA_VISIBLE_DEVICES=2 python train_125m.py --arm xgram --seed "$sd" ... --out runs_125m/xgram_s$sd &
-  CUDA_VISIBLE_DEVICES=3 python train_125m.py --arm mp_ve --seed "$sd" ... --out runs_125m/mpve_s$sd &
-  wait
-done
-```
-
-### Wave 3 — plain_eq_weights / ctrl_word seeds
-
-```bash
-CUDA_VISIBLE_DEVICES=0 python train_125m.py --arm plain_eq_weights --eq-width 1472 --eq-heads 16 --micro-batch 16 --grad-accum 16 --seed 1 ... --out runs_125m/plain_eqW_s1 &
-CUDA_VISIBLE_DEVICES=1 python train_125m.py --arm ctrl_word --seed 1 ... --out runs_125m/ctrl_word_s1 &
-# repeat for seed 2
-```
-
-### Wave 4 — lm-eval
-
-Evaluate `ckpt_2500M.pt` for:
-1. `plain`, `word`, `u123`, `ctrl_hs_pruned` (3 seeds each) — **must**;
-2. `u1`, `ctrl_hs`, `plain_eq_weights`, `ctrl_word` (3 seeds each) — if time;
-3. `engram`, `plain184`, `xgram`, `mp_ve` — after their runs.
-
-Report `acc`, `acc_norm`, `word_perplexity`; paired by seed.
-
 ---
 
-## 5. Acceptance gates
+## 7. Acceptance Gates
 
-1. **New arm gate:** smoke + 25-step probe pass; `peak_vram_gb < 0.8 × VRAM`;
-   loss finite and decreasing.
-2. **Engram gate:** the run must use the real Engram design (2/3g, K heads,
-   key/value, conv, context gate), not `ctrl_hs`. If it is not, rename it and
-   do not claim “beats Engram.”
-3. **Equal-FLOPs gate:** `plain184` body within 5% of `u123` body (184.2M).
-   If not, adjust `d`.
-4. **Downstream gate:** LAMBADA / WikiText / PIQA / ARC-Easy; if no task moves
-   beyond seed noise, do not claim broad downstream gains; report PPL-only.
-5. **Equal-weights gate:** `plain_eq_weights` likely wins at 2.5B. Report it as
-   a boundary; do not headline equal-weights.
-6. **No leakage gate:** eval wrapper's lookup IDs must be invariant to changing
-   the final target token. Run the same test as the training smoke.
-
----
-
-## 6. What to send back
-
-- `results/countdata_125m.npz` (CountData keys/counts).
-- Per-arm `metrics_final.json`, `log.jsonl`, `ckpt_2500M.pt` paths.
-- lm-eval JSONs: `results/lm_eval/<arm>_s<seed>.json`.
-- A one-page summary table: 2500M val, per-bucket, LAMBADA/WikiText/PIQA/ARC,
-  params, train tok/s, b1 latency, peak VRAM.
-- `nvidia-smi`, `df -h`, PyTorch/CUDA versions.
-
----
-
-## 7. Pitfalls
-
-- **CountData alignment:** never evaluate a checkpoint with a different count
-  prefix; table rows will be misindexed.
-- **Causal leakage:** lookup IDs only from input tokens; test by changing the
-  target token.
-- **Disk:** 20+ runs × 6 milestones × ~1.5–2.5GB = 200–300GB. Keep only
-  `ckpt_500M/1B/2.5B` or `ckpt_final`; delete the rest.
-- **`pc_1` unresolved** at 10% prefix; report `pc_0`, `pc_2`, `pc_3`, `pc_4`
-  as approximate.
-- **Equal weights:** plain_eq overtakes `u123` at ~500M; do not claim
-  equal-weights.
-- **30M vs 125M:** the 30M `fullmid` result is not predictive; do not use it to
-  reject the 125M `u123`.
-- **Compile:** run the 25-step probe with `--compile 1`; fall back to
-  `--compile 0` if it fails.
-- **DDP:** use four independent jobs, not DDP; no NVLink on 4090.
-
----
-
-## 8. Timeline
-
-| Day | Work |
-|---|---|
-| 1 | Implement/port Engram + X-GRAM + `save_counts_125m.py`; smoke + probe |
-| 2 | Wave 1 + Wave 2 (new baselines, seeds 0–2) |
-| 3 | Wave 3 (`plain_eq_weights`, `ctrl_word` seeds); lm-eval wrapper |
-| 4–5 | lm-eval on all 2500M checkpoints; aggregate; sanity checks |
-| 6 | Buffer for reruns; write `PHASE2_RESULTS.md` |
-
----
-
-## 9. One-line
-
-**Medium budget = ~300 GPU·h: add Engram + equal-FLOPs plain + X-GRAM + MP-VE,
-finish `plain_eq_weights`/`ctrl_word` seeds, and run zero-shot
-LAMBADA/WikiText/PIQA/ARC on the 2500M checkpoints. The paper's ceiling is set
-by Engram and downstream, not by more small-scale ablations.**
+1. **Smoke + 25-step probe**: all 12 arms pass `--smoke`, 25-step probes (`engram`, `xgram`, `plain184`, `u123_no3g`) stay finite with `peak_vram_gb < 0.8 × VRAM`.
+2. **CountData alignment gate**: `eval_lm.py --verify-val-shard` on Phase-1 `u123_s0` reproduces `val ≈ 3.24411` within float rounding. If it drifts, stop immediately — wrong shard order or `--count-tokens`.
+3. **Equal-FLOPs gate**: `plain184` (`--d 832 --heads 13`) `body_params` within `±2%` of `u123`'s `184.2M`.
+4. **Engram budget check**: verify `table_params` of `engram` (`~256.0M`) is logged accurately and `engram` runs with `K=4`, K/V proj, context gate, causal dilated conv (`ctrl_hs` stays separate).
+5. **Downstream honesty gate**: if `u123` beats `ctrl_hs_pruned`/`plain` on `lambada_openai`/`wikitext`/`sciq`/`piqa`/`arc_easy`, report exact per-task 3-seed paired stats; any task near random floor (e.g. `hellaswag` if flat) must be reported transparently without cherry-picking.
+6. **Artifacts to collect back**: `results/countdata_125m.npz`, `runs_125m_phase2/*/metrics_final.json` & `ckpt_2500M.pt`, `results/lm_eval/*.json`, `results/lm_eval/bucket_acc/*.json`, plus a `PHASE2_RESULTS.md` summary table.

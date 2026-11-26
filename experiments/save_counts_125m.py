@@ -75,6 +75,7 @@ def main() -> None:
         mature_keys=cd.mature_keys,
         all_keys=cd.all_keys,
         all_counts=cd.all_counts,
+        xgram_hi_words=cd.xgram_hi_words,
         V=np.array(args.V),
         count_tokens=np.array(args.count_tokens),
         train_tokens=np.array(args.train_tokens),
@@ -85,7 +86,7 @@ def main() -> None:
     print(f"[ok] saved {args.out}")
     print(f"     hi={len(cd.hi_keys):,} mid={len(cd.mid_keys):,} "
           f"mature={len(cd.mature_keys):,} 3g={len(cd.g3_keys):,} "
-          f"all_pairs={len(cd.all_keys):,}")
+          f"all_pairs={len(cd.all_keys):,} xgram_top80={len(cd.xgram_hi_words):,}")
 
 
 if __name__ == "__main__":
