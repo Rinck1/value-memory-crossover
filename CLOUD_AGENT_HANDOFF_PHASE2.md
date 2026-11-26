@@ -78,8 +78,8 @@ If the budget is tighter, the **minimum** is:
 The memory tables are indexed by IDs derived from the **first 250M training
 tokens**. A checkpoint cannot be evaluated with a different count prefix.
 
-Add `experiments/save_counts_125m.py` (or `--save-counts` to `train_125m.py`)
-that calls the same `build_counts` and writes:
+Implemented: `experiments/save_counts_125m.py`. It calls the same
+`build_counts` and writes:
 
 ```python
 np.savez_compressed(
@@ -117,7 +117,9 @@ Verify with the `[model] body=` line; if off by >5%, adjust `d` to 824/840.
 
 ### 3.5 lm-eval wrapper
 
-Write `experiments/eval_lm.py` using `lm_eval.api.model.LM`:
+Draft implemented: `experiments/eval_lm.py` (`lm_eval.api.model.LM`). The
+`--dry-run` path was tested locally with a synthetic checkpoint (logits finite);
+the `loglikelihood` path still needs one cloud smoke test.
 - load `ckpt_2500M.pt`, rebuild `Model` from the checkpoint config + actual
   table shapes;
 - load `results/countdata_125m.npz`; compute lookup IDs **only from the input
@@ -125,6 +127,9 @@ Write `experiments/eval_lm.py` using `lm_eval.api.model.LM`:
 - GPT-2 tokenizer (`transformers.AutoTokenizer.from_pretrained("gpt2")`);
 - implement `loglikelihood`, `loglikelihood_rolling`, `generate_until`;
 - `--batch_size 1` on 8GB cards, 4–8 on 96GB cards.
+
+Launcher: `experiments/run_phase2_125m.sh`. Engram/X-GRAM lines are commented
+out until those arms are implemented in `train_125m.py`.
 
 Run:
 ```bash
