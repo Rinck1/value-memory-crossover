@@ -10,7 +10,7 @@ Style: Minimalist serif (Times/STIX), open L-frame spines, light solid grid (`#E
 | `fig0_architecture` | Architectural spec | Shared prefix-tiered 1g/2g/3g memory bank + dual layer injection + pre-head readout (`U123`). |
 | `fig1_crossover` | Block E + `unk_filtered_eval.json` | Word leads `<100`; pair wins `100–999` and flips `1000+` cleanly to negative once `<UNK>` input pairs are excluded. |
 | `fig2_phase` | `local_suite_results.json` → Block B | Pair tables cross over only at large $M$ and large token budgets. |
-| `fig3_width_cstar` | Block C + `p0_results.json` step 1 | Pair advantage narrows with width; $c^\star$ grows sublinearly over $d=16$–$64$; $d=128$ is unidentified. |
+| `fig3_width_cstar` | Block C + `p0_results.json` step 1 | Pair advantage narrows with width; $c^\star$ brackets stay in $[250,1000]$ for $d=16$–$64$ (rejecting $\alpha=1.0$ linear null without claiming a power-law slope); $d=128$ is unidentified. |
 | `fig4_method` | Block D + `upgrade_search` + `extra_ablations` | Quality–memory Pareto frontier and 11-arm Cleveland dot ablations (`U123`, `mid` rank, `res`, `random_tier`, `CTRL_hs_pruned`). |
 | `fig5_heldout` | `p0_results.json` step 2 | Preregistered held-out prediction: 5/5 bucket signs, overall errors `<0.009` nats. |
 | `fig6_gates_beta2` | Block E + Block F | Gates learned from `0.5` emerge naturally vs. flat `RMSNorm`; $\beta_2$ invariance across `0.9–0.999`. |

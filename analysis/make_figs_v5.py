@@ -321,14 +321,15 @@ def fig2():
 
 
 # ----------------------------------------------------------------------------
-# Fig. 3  Width Scaling & Weakly-Identified c*(d)
+# Fig. 3  Width Scaling & Bracketed c*(d) Bounds (No Unidentified Power-Law Claim)
 # ----------------------------------------------------------------------------
 def fig3():
     L = load("local_suite_results.json")
     Cw = L["block_C_width_scaling"]
     P = load("p0_results.json")["step1_fine_cstar"]
-    T = load("theory_cstar_analysis.json")["D_reduced_model_and_prereg_widths"]
-    hv = T["heldout_verification_results"]
+    T_all = load("theory_cstar_analysis.json")
+    per_d = T_all["A_fine_bucket"]["per_d"]
+    hv = T_all["D_reduced_model_and_prereg_widths"]["heldout_verification_results"]
 
     fig, axes = plt.subplots(1, 2, figsize=(10.8, 3.8))
     fig.subplots_adjust(wspace=0.30)
@@ -352,20 +353,27 @@ def fig3():
     ax.set_title(r"(a) Pair Advantage vs. Width ($d=8\text{–}128$)")
 
     ax = axes[1]
-    fit_w = np.array([16, 32, 64], dtype=float)
-    fit_c = np.array([P["widths"][str(int(w))]["cstar_mean_curve"] for w in fit_w])
-    c128 = P["widths"]["128"]["cstar_mean_curve"]
+    base_w = np.array([16, 32, 64], dtype=float)
+    base_c = np.array([P["widths"][str(int(w))]["cstar_mean_curve"] for w in base_w])
+    base_lo = np.array([per_d[str(int(w))]["bracket_edge"][0] for w in base_w], dtype=float)
+    base_hi = np.array([per_d[str(int(w))]["bracket_edge"][1] for w in base_w], dtype=float)
+
     ho_w = np.array([24, 48], dtype=float)
     ho_c = np.array([hv["24"]["measured_cstar"], hv["48"]["measured_cstar"]])
+    ho_lo = np.array([250.0, 40.0])
+    ho_hi = np.array([1000.0, 100.0])
 
-    coef = np.polyfit(np.log(fit_w), np.log(fit_c), 1)
+    c128 = P["widths"]["128"]["cstar_mean_curve"]
+
     dg = np.logspace(np.log10(14), np.log10(136), 120)
-    ax.plot(dg, np.exp(coef[1]) * dg ** coef[0], color=PAL["coral"], lw=1.45,
-            label=fr"Sublinear fit ($\alpha={coef[0]:.2f}$)")
-    ax.plot(dg, fit_c[0] * (dg / 16.0), color=PAL["cyan"], lw=1.35, ls="--",
-            label=r"Linear null ($\alpha=1.0$)")
-    ax.plot(fit_w, fit_c, "o", color=PAL["coral"], ms=5.6, label=r"$d \in \{16,32,64\}$")
-    ax.plot(ho_w, ho_c, "D", color=PAL["teal"], ms=5.4, label=r"Held-out $d \in \{24,48\}$")
+    ax.plot(dg, base_c[0] * (dg / 16.0), color=PAL["cyan"], lw=1.45, ls="--",
+            label=r"Rejected linear null ($\alpha=1.0$)")
+    ax.errorbar(base_w, base_c, yerr=[base_c - base_lo, base_hi - base_c],
+                fmt="o", color=PAL["coral"], ms=5.6, capsize=3.0, elinewidth=1.2,
+                label=r"$d\in\{16,32,64\}$ bracket bounds")
+    ax.errorbar(ho_w, ho_c, yerr=[ho_c - ho_lo, ho_hi - ho_c],
+                fmt="D", color=PAL["teal"], ms=5.4, capsize=3.0, elinewidth=1.2,
+                label=r"Held-out $d\in\{24,48\}$ brackets")
     ax.plot([128], [c128], "s", mfc="white", mec=PAL["grey"], mew=1.3, ms=5.6,
             label=r"$d=128$ (unidentified)")
 
@@ -376,9 +384,9 @@ def fig3():
     ax.set_xlim(13.5, 148)
     ax.set_ylim(28, 7200)
     ax.set_xlabel("Backbone Width $d$")
-    ax.set_ylabel(r"Estimated $c^\star$")
-    ax.legend(loc="upper left", fontsize=7.8)
-    ax.set_title(r"(b) Weakly-Identified $c^\star(d)$")
+    ax.set_ylabel(r"Crossover Bracket $c^\star$ (sightings)")
+    ax.legend(loc="upper left", fontsize=7.6)
+    ax.set_title(r"(b) Crossover Brackets vs. Linear Null")
 
     save(fig, "fig3_width_cstar")
 

@@ -40,12 +40,14 @@
   \centering
   \includegraphics[width=\linewidth]{figs_v5/fig3_width_cstar.pdf}
   \caption{(a) High-frequency pair advantage (word minus Engram loss in the
-  100--999 bucket) versus model width.  The advantage shrinks as the model
-  widens.  (b) Estimated crossover count $c^\star$ versus width.  The
-  $d=16$--$64$ subset grows sublinearly ($\alpha\approx0.32$); the full fit
-  including $d=128$ is non-monotone ($\alpha=-0.94$, $R^2=0.46$) and the
-  $d=128$ estimate is not identified.  We therefore report the sublinear trend
-  and do not claim a scaling law across all widths.}
+  100--999 bucket) versus model width.  The advantage narrows as the model
+  widens.  (b) Interval-bracketed crossover thresholds $c^\star(d)$ versus
+  width alongside the linear null ($\alpha=1.0$).  Across $d\in\{16,24,32,64\}$
+  crossings stay within $[250, 1000]$ and $d=128$ is unidentified; bootstrap
+  power-law CIs span zero ($[-1.20, +0.96]$, $R^2=0.455$ with $d=128$), so we
+  report bracket bounds and reject linear scaling ($P(\alpha\ge 1)=0.0247$;
+  held-out $d=24,48$ stay positive on \texttt{b\_500\_1000}) without claiming a
+  point-estimate power law.}
   \label{fig:width}
 \end{figure}
 

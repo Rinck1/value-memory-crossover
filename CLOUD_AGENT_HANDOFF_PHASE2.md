@@ -79,7 +79,27 @@ Plus **zero-extra-code FineWeb Diagnostic (`--verify-val-shard`)**:
 
 ---
 
-## 5. Paper Completeness Checklist for ICML Submission
+## 5. Phase-3 / Third-Scale Extension: `350M × 5B` (`experiments/run_350m_5b.sh`)
+
+To turn the `30M -> 125M` contrast into a full **3-point scaling study** (`30M -> 125M × 2.5B -> 350M × 5B`) for ICML main:
+
+- **Backbone (`350M` class):** `L=24, d=1024, H=16` (`head_dim=64`, ~`404.8M` untied `plain`).
+- **Budget & Prefix (`5.0B` tokens = 51 shards, ~10.2 GB):** `--count-tokens 500000000` (`500M` 10% prefix, proportional scaling), `2×` table capacity (`--pair-rows 2000000 --n-hi 1000000 --n-mid 3000000 --n-3g 300000 --d-mem 256`, saving `results/countdata_350m.npz`).
+- **Micro-batch & Hardware:** `--micro-batch 8 --grad-accum 32` (`131,072` tokens/step, matching 125M batch dynamics while halving activation memory). Requires **48 GB+ GPUs** (`4090-48G / A6000 / A100-80G / H20-96G`) and **≥32 GB system RAM** for `500M`-token count construction (`np.unique`).
+- **Core Arms (`2 seeds` default, ~120–160 GPU·h; set `RUN_SEEDS2=1` for 3 seeds):**
+  1. `u123` (`d=1024, L=24` -> `475.34M` body, `537.68M` table, `1013.02M` total);
+  2. `ctrl_hs_pruned` (`d=1024, L=24` -> `475.34M` body, `524.87M` table, `1000.21M` total);
+  3. `engram` (`d=1024, L=24` -> `405.83M` body, `512.00M` table, `917.83M` total);
+  4. `plain_eqFLOP` (`--d 1152 --heads 18 --layers 24` -> `498.06M` body, strictly conservative equal/above-active-FLOPs dense comparator);
+  5. `plain` (`d=1024, L=24`, `404.77M` body) and `word` (`d=1024, L=24`, `404.77M` body, `102.93M` table, `507.70M` total).
+- **Run command:**
+  ```bash
+  bash experiments/run_350m_5b.sh
+  ```
+
+---
+
+## 6. Paper Completeness Checklist for ICML Submission
 
 To lock in a clean main-conference ICML submission, make sure the final manuscript (`ICML_Research_Proposal_v5.tex` -> camera-ready draft) contains these 6 evidence blocks:
 
@@ -92,7 +112,7 @@ To lock in a clean main-conference ICML submission, make sure the final manuscri
 
 ---
 
-## 6. Execution Runbook (Copy-Paste Ready)
+## 7. Execution Runbook (Copy-Paste Ready)
 
 ### Option A: Zero-Cost Local Downstream Eval (RTX 4070 8GB, using saved Phase-1 checkpoints)
 1. Ensure `runs_125m/<arm>_s<seed>/ckpt_2500M.pt`, `data/` (first 3 FineWeb train shards + val shard), and `pip install lm-eval transformers` are present locally.
@@ -119,7 +139,7 @@ SKIP_DOWNLOAD=1 RUN_P2_ABLATIONS=0 bash experiments/run_phase2_125m.sh
 
 ---
 
-## 7. Acceptance Gates
+## 8. Acceptance Gates
 
 1. **Smoke + 25-step probe**: all 12 arms pass `--smoke`, 25-step probes (`engram`, `xgram`, `plain184`, `u123_no3g`) stay finite with `peak_vram_gb < 0.8 × VRAM`.
 2. **CountData alignment gate**: `eval_lm.py --verify-val-shard` on Phase-1 `u123_s0` reproduces `val ≈ 3.24411` within float rounding. If it drifts, stop immediately — wrong shard order or `--count-tokens`.
