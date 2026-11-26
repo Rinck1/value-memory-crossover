@@ -112,35 +112,8 @@ if [ "${RUN_P2_ABLATIONS}" = "1" ]; then
 fi
 
 echo "=== [5/5] Zero-shot lm-eval + FineWeb bucketed top-1 accuracy ==="
-mkdir -p results/lm_eval/bucket_acc
-for base_arm in \
-    "runs_125m:u123" "runs_125m:ctrl_hs_pruned" "runs_125m:plain" "runs_125m:word" \
-    "runs_125m:u1" "runs_125m:ctrl_hs" "runs_125m:plain_eqW" "runs_125m:ctrl_word" \
-    "${OUT_DIR}:engram" "${OUT_DIR}:plain184" "${OUT_DIR}:xgram" "${OUT_DIR}:mpve" \
-    "${OUT_DIR}:plain_eqW" "${OUT_DIR}:ctrl_word" "${OUT_DIR}:u123_no3g"; do
-    root="${base_arm%%:*}"
-    arm="${base_arm##*:}"
-    for sd in 0 1 2; do
-        ckpt="${root}/${arm}_s${sd}/ckpt_2500M.pt"
-        [ -f "${ckpt}" ] || continue
-        if [ -f "${DATA_DIR}/fineweb_val_000000.bin" ] && [ ! -f "results/lm_eval/bucket_acc/${arm}_s${sd}.json" ]; then
-            python experiments/eval_lm.py --checkpoint "${ckpt}" \
-                --countdata results/countdata_125m.npz \
-                --verify-val-shard "${DATA_DIR}/fineweb_val_000000.bin" \
-                --output "results/lm_eval/bucket_acc/${arm}_s${sd}.json"
-        fi
-        out_json="results/lm_eval/${arm}_s${sd}.json"
-        if [ -f "${out_json}" ]; then
-            echo "[skip existing] ${out_json}"
-            continue
-        fi
-        python experiments/eval_lm.py --checkpoint "${ckpt}" \
-            --countdata results/countdata_125m.npz \
-            --tasks "${TASKS}" \
-            --num_fewshot 0 --batch_size 8 \
-            --output "${out_json}"
-    done
-done
+SCALE=125m OUT_DIR_125M="${OUT_DIR}" DATA_DIR="${DATA_DIR}" TASKS="${TASKS}" \
+    bash experiments/run_downstream_eval.sh
 
 echo "=== Done. Summary: ==="
 python - <<'PY'

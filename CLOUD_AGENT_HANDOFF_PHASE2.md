@@ -124,9 +124,11 @@ To lock in a clean main-conference ICML submission, make sure the final manuscri
    ```bash
    python experiments/eval_lm.py --checkpoint runs_125m/u123_s0/ckpt_2500M.pt --countdata results/countdata_125m.npz --verify-val-shard data/fineweb_val_000000.bin --device cuda
    ```
-4. Smoke-test `lm_eval` before full run, then evaluate (`--batch_size 1` or `2` on 8 GB):
+4. Smoke-test `lm_eval` before full run, then evaluate all backed-up checkpoints across available GPUs (`--dtype auto` uses `bfloat16` on CUDA so even `350M` fits in `<3 GB` VRAM on 8 GB cards):
    ```bash
    python experiments/eval_lm.py --checkpoint runs_125m/u123_s0/ckpt_2500M.pt --countdata results/countdata_125m.npz --tasks lambada_openai --limit 10 --batch_size 1
+   bash experiments/run_downstream_eval.sh          # auto-detects 1 GPU locally or 4 GPUs on cloud
+   # Faster pass without HellaSwag: TASKS=lambada_openai,wikitext,piqa,arc_easy,sciq bash experiments/run_downstream_eval.sh
    ```
 
 ### Option B: Full Cloud Phase-2 Suite (`4 × GPU`, `--micro-batch 16 --grad-accum 16`)

@@ -61,7 +61,8 @@ def _find_suffix(state: dict, suffix: str):
     return None
 
 
-def build_model_from_checkpoint(checkpoint: str, countdata: str, max_seq: int | None, device: str):
+def build_model_from_checkpoint(checkpoint: str, countdata: str, max_seq: int | None,
+                                device: str, dtype: str = "auto"):
     ckpt = torch.load(checkpoint, map_location="cpu", weights_only=False)
     cfg_args = ckpt["config"]
     state = _strip_prefixes(ckpt["model"])
@@ -114,7 +115,9 @@ def build_model_from_checkpoint(checkpoint: str, countdata: str, max_seq: int | 
             f"  missing={missing[:8]} (n={len(missing)})\n"
             f"  unexpected={unexpected[:8]} (n={len(unexpected)})"
         )
-    model.eval().to(device)
+    dev = torch.device(device)
+    target_dtype = torch.bfloat16 if (dtype == "bf16" or (dtype == "auto" and dev.type == "cuda")) else torch.float32
+    model.eval().to(device=dev, dtype=target_dtype)
 
     z = np.load(countdata)
     cd = t.CountData(
@@ -204,13 +207,13 @@ def make_lm_class():
         )
 
     class ValueMemoryLM(LM):
-        def __init__(self, checkpoint, countdata, device="cuda", max_length=None, batch_size=1):
+        def __init__(self, checkpoint, countdata, device="cuda", max_length=None, batch_size=1, dtype="auto"):
             super().__init__()
             self._device = device
             self._batch_size = max(1, int(batch_size))
             (self.model, self.cd, self.cfg, self.cfg_args,
              self.V, self.d, self.layers, self.heads, self._max_length) = \
-                build_model_from_checkpoint(checkpoint, countdata, max_length, device)
+                build_model_from_checkpoint(checkpoint, countdata, max_length, device, dtype=dtype)
             from transformers import AutoTokenizer
             self.tok = AutoTokenizer.from_pretrained("gpt2")
             self.eot = int(self.tok.eos_token_id)
@@ -386,6 +389,8 @@ def main():
     p.add_argument("--max_length", type=int, default=None,
                    help="Defaults to checkpoint config seq_len (512) to stay inside trained RoPE range")
     p.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
+    p.add_argument("--dtype", default="auto", choices=["auto", "bf16", "fp32"],
+                   help="auto uses bfloat16 on CUDA (halves 350M VRAM to ~2GB) and float32 on CPU")
     p.add_argument("--limit", type=float, default=None)
     p.add_argument("--output", default=None)
     p.add_argument("--dry-run", action="store_true")
@@ -401,7 +406,7 @@ def main():
 
     if args.verify_val_shard:
         model, cd, cfg, cfg_args, V, d, layers, heads, seq_len = build_model_from_checkpoint(
-            args.checkpoint, args.countdata, args.max_length, args.device)
+            args.checkpoint, args.countdata, args.max_length, args.device, dtype=args.dtype)
         res = evaluate_val_shard(model, cd, cfg, cfg_args, args.verify_val_shard, args.device, seq_len)
         print(f"[verify-val] arm={cfg_args['arm']} seq_len={seq_len} {res}")
         if user_output is not None:
@@ -413,7 +418,7 @@ def main():
     if args.dry_run:
         # Load and run one tiny forward without lm_eval.
         model, cd, cfg, cfg_args, V, d, layers, heads, seq_len = build_model_from_checkpoint(
-            args.checkpoint, args.countdata, args.max_length, args.device)
+            args.checkpoint, args.countdata, args.max_length, args.device, dtype=args.dtype)
         n_tok = min(64, seq_len)
         toks = np.random.default_rng(0).integers(0, V, size=(1, n_tok + 1), dtype=np.int64)
         md = t.make_train_ids(toks, cd, V, cfg)
@@ -421,12 +426,12 @@ def main():
         mem = {k: torch.from_numpy(v).to(args.device) for k, v in md.items()}
         with torch.no_grad():
             logits = model(ids, **mem)
-        print(f"[dry-run] arm={cfg_args['arm']} seq_len={seq_len} logits {tuple(logits.shape)} finite={bool(torch.isfinite(logits).all())}")
+        print(f"[dry-run] arm={cfg_args['arm']} dtype={args.dtype} seq_len={seq_len} logits {tuple(logits.shape)} finite={bool(torch.isfinite(logits).all())}")
         return
 
     LM = make_lm_class()
     lm = LM(args.checkpoint, args.countdata, device=args.device,
-            max_length=args.max_length, batch_size=args.batch_size)
+            max_length=args.max_length, batch_size=args.batch_size, dtype=args.dtype)
 
     from lm_eval import simple_evaluate
     kwargs = dict(

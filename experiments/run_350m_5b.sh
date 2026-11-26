@@ -110,28 +110,8 @@ if [ "${RUN_SEEDS2}" = "1" ]; then
 fi
 
 echo "=== [5/5] 350M Zero-shot lm-eval + FineWeb bucketed top-1 accuracy ==="
-for arm in u123 ctrl_hs_pruned engram plain_eqFLOP plain word; do
-    for sd in 0 1 2; do
-        ckpt="${OUT_DIR}/${arm}_s${sd}/ckpt_5000M.pt"
-        [ -f "${ckpt}" ] || continue
-        if [ -f "${DATA_DIR}/fineweb_val_000000.bin" ] && [ ! -f "results/lm_eval_350m/bucket_acc/${arm}_s${sd}.json" ]; then
-            python experiments/eval_lm.py --checkpoint "${ckpt}" \
-                --countdata results/countdata_350m.npz \
-                --verify-val-shard "${DATA_DIR}/fineweb_val_000000.bin" \
-                --output "results/lm_eval_350m/bucket_acc/${arm}_s${sd}.json"
-        fi
-        out_json="results/lm_eval_350m/${arm}_s${sd}.json"
-        if [ -f "${out_json}" ]; then
-            echo "[skip existing] ${out_json}"
-            continue
-        fi
-        python experiments/eval_lm.py --checkpoint "${ckpt}" \
-            --countdata results/countdata_350m.npz \
-            --tasks "${TASKS}" \
-            --num_fewshot 0 --batch_size 8 \
-            --output "${out_json}"
-    done
-done
+SCALE=350m OUT_DIR_350M="${OUT_DIR}" DATA_DIR="${DATA_DIR}" TASKS="${TASKS}" \
+    bash experiments/run_downstream_eval.sh
 
 echo "=== Done. 350M Summary: ==="
 python - <<'PY'
