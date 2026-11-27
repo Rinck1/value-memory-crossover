@@ -3,6 +3,9 @@
   "frozen_preregistration_commit": "b89068c",
   "theorem1_finite_sample_identity": {
     "sympy_identity_diff_is_zero": true,
+    "sympy_harmonic_phase_boundary_exact": true,
+    "sympy_infinite_collision_prune_limit_eq_sx2_over_sv2": true,
+    "harmonic_phase_boundary": "1/n_k + 1/N_b < (sigma_v^2 / sigma_xi^2) * (1 + S_2 / N_b^2)",
     "assumptions": "Idealized i.i.d. zero-mean key targets (E||v_k||^2 = sigma_v^2), i.i.d. observation noise (E||xi||^2 = sigma_xi^2), uniform hash h, and sample-mean bucket estimator. Zero Zipf / frequency-distribution assumption.",
     "mc_verification": {
       "U": 2000,

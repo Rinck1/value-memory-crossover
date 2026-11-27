@@ -42,6 +42,18 @@ def verify_theorem1_sympy_and_mc(
     expected = sv2 * (Nb**2 + S2) / (nk + Nb) ** 2 - sx2 * Nb / (nk * (nk + Nb))
     sympy_diff_zero = sp.simplify(diff - expected) == 0
 
+    # Harmonic-mean phase boundary exact equivalence:
+    # Delta > 0  <=>  (1/n_k) + (1/N_b) < (sigma_v^2 / sigma_xi^2) * (1 + S_2 / N_b^2)
+    # Check exact algebraic equivalence: diff * nk * (nk + Nb)**2 / (sx2 * Nb * nk * Nb)
+    lhs_harmonic = (sv2 / sx2) * (1 + S2 / Nb**2) - (1 / nk + 1 / Nb)
+    scale_pos = sx2 * Nb**2 / (nk + Nb) ** 2
+    sympy_harmonic_equiv = sp.simplify(diff - scale_pos * lhs_harmonic) == 0
+    # Check exact limit N_b -> oo with S2 / N_b^2 -> 0 reduces to n_k > sigma_xi^2 / sigma_v^2 (Thm 2 full-rank vs prune)
+    ratio_s2 = sp.Symbol("rho_2", nonnegative=True)
+    boundary_expr = sp.Eq(1 / nk + 1 / Nb, (sv2 / sx2) * (1 + ratio_s2))
+    limit_nk_prune = sp.simplify(sp.solve(boundary_expr.subs({1 / Nb: 0, ratio_s2: 0}), nk)[0])
+    sympy_prune_limit_exact = sp.simplify(limit_nk_prune - sx2 / sv2) == 0
+
     # Crossover condition: Delta_k < 0  <=>  n_k < (sigma_xi^2 / sigma_v^2) * N_b * (n_k + N_b) / (N_b^2 + S_2)
     # Monte Carlo check covering BOTH regimes: low-count keys (pooling wins, Delta < 0) & high-count (collision wins, Delta > 0)
     rng = np.random.default_rng(123)
@@ -88,6 +100,9 @@ def verify_theorem1_sympy_and_mc(
 
     return {
         "sympy_identity_diff_is_zero": bool(sympy_diff_zero),
+        "sympy_harmonic_phase_boundary_exact": bool(sympy_harmonic_equiv),
+        "sympy_infinite_collision_prune_limit_eq_sx2_over_sv2": bool(sympy_prune_limit_exact),
+        "harmonic_phase_boundary": "1/n_k + 1/N_b < (sigma_v^2 / sigma_xi^2) * (1 + S_2 / N_b^2)",
         "assumptions": (
             "Idealized i.i.d. zero-mean key targets (E||v_k||^2 = sigma_v^2), i.i.d. observation noise "
             "(E||xi||^2 = sigma_xi^2), uniform hash h, and sample-mean bucket estimator. Zero Zipf / "

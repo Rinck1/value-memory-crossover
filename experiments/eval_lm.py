@@ -61,8 +61,73 @@ def _find_suffix(state: dict, suffix: str):
     return None
 
 
+def attach_memory_ablation_and_gate_hooks(model, zero_memory: str = "none"):
+    """Multiply memory contributions by 0 inside forward without altering checkpoint/architecture,
+    verify projection layers are bias-free (no gate-bias leakage), and record actual gate openings.
+
+    zero_memory:
+      - "none" : normal forward (records gate openings only)
+      - "ngram": zeros 2g/3g pair memory p_raw (keeps 1g word table ve_word); zeros Engram output
+      - "all"  : zeros ALL memory (w_raw and p_raw, plus Engram output) for pure-backbone vs plain184
+    """
+    if zero_memory not in ("none", "ngram", "all"):
+        raise ValueError(f"Unsupported zero_memory mode: {zero_memory}")
+
+    # Assert all memory projections have bias=False so zeroing w_raw/p_raw yields exact zero contribution
+    for blk in model.blocks:
+        for attr in ("proj_w_v", "proj_p_v", "proj_res"):
+            mod = getattr(blk, attr, None)
+            if mod is not None and mod.bias is not None:
+                raise RuntimeError(f"[zero-memory] unexpected bias in block.{attr}; cannot guarantee zero leak")
+    if getattr(model, "pre_head_mem", False) and model.head_proj.bias is not None:
+        raise RuntimeError("[zero-memory] unexpected bias in model.head_proj; cannot guarantee zero leak")
+
+    def _wrap_bank(bank):
+        orig_lookup = bank.lookup
+
+        def _wrapped_lookup(*args, **kwargs):
+            w_raw, p_raw = orig_lookup(*args, **kwargs)
+            if zero_memory == "all" and w_raw is not None:
+                w_raw = w_raw * 0.0
+            if zero_memory in ("ngram", "all") and p_raw is not None:
+                p_raw = p_raw * 0.0
+            return w_raw, p_raw
+
+        bank.lookup = _wrapped_lookup
+
+    if zero_memory != "none":
+        if getattr(model, "bank", None) is not None:
+            _wrap_bank(model.bank)
+        for blk in model.blocks:
+            if getattr(blk, "memory", None) is not None:
+                _wrap_bank(blk.memory)
+        if getattr(model, "engram", None) is not None:
+            model.engram.forward = lambda x, ids, escale: x
+
+    # Forward hooks recording per-token mean gate openings on the last forward pass
+    gate_buffers: dict[str, list[torch.Tensor]] = {"gate_v": [], "gate_res": [], "head_gate": []}
+
+    def _make_hook(kind: str, scale: float):
+        def _hook(_mod, _inp, out):
+            # out shape: (B, T, d) -> mean across d gives per-token opening (B, T)
+            val = (scale * torch.sigmoid(out.detach().float())).mean(dim=-1).cpu()
+            gate_buffers[kind].append(val)
+        return _hook
+
+    handles = []
+    for blk in model.blocks:
+        if getattr(blk, "gate_v", None) is not None:
+            handles.append(blk.gate_v.register_forward_hook(_make_hook("gate_v", 2.0)))
+        if getattr(blk, "gate_res", None) is not None:
+            handles.append(blk.gate_res.register_forward_hook(_make_hook("gate_res", 1.0)))
+    if getattr(model, "pre_head_mem", False) and getattr(model, "head_gate", None) is not None:
+        handles.append(model.head_gate.register_forward_hook(_make_hook("head_gate", 1.0)))
+
+    return gate_buffers, handles
+
+
 def build_model_from_checkpoint(checkpoint: str, countdata: str, max_seq: int | None,
-                                device: str, dtype: str = "auto"):
+                                device: str, dtype: str = "auto", zero_memory: str = "none"):
     ckpt = torch.load(checkpoint, map_location="cpu", weights_only=False)
     cfg_args = ckpt["config"]
     state = _strip_prefixes(ckpt["model"])
@@ -144,12 +209,16 @@ def build_model_from_checkpoint(checkpoint: str, countdata: str, max_seq: int | 
         )
     if cfg["memory_mode"] == "hash" and cfg["gate_mode"] == "tier" and len(cd.mature_keys) == 0:
         raise SystemExit("[eval] CountData has empty mature_keys for pruned hash arm")
+    gate_buffers, _handles = attach_memory_ablation_and_gate_hooks(model, zero_memory=zero_memory)
+    model._gate_buffers = gate_buffers
+    model._zero_memory = zero_memory
     return model, cd, cfg, cfg_args, V, d, layers, heads, seq_len
 
 
 @torch.no_grad()
 def evaluate_val_shard(model, cd, cfg, cfg_args, val_shard: str, device: str, seq_len: int) -> dict:
-    """Verify exact checkpoint+CountData alignment and compute bucketed FineWeb loss + top-1 accuracy."""
+    """Verify exact checkpoint+CountData alignment and compute bucketed FineWeb loss, top-1 accuracy,
+    and per-bucket actual gate openings (supports --zero-memory diagnostic)."""
     val_stream = t.ShardStream([val_shard])
     val_seqs = int(cfg_args.get("val_seqs", 256))
     starts = np.linspace(0, val_stream.total - seq_len - 2, val_seqs).astype(np.int64)
@@ -162,8 +231,10 @@ def evaluate_val_shard(model, cd, cfg, cfg_args, val_shard: str, device: str, se
     auto_scale = int(cfg_args.get("auto_scale_thresh", 1))
     scale = (count_tokens / max(1.0, train_tokens)) if auto_scale else 1.0
     dev = torch.device(device)
+    gate_buffers = getattr(model, "_gate_buffers", {"gate_v": [], "gate_res": [], "head_gate": []})
 
     losses, accs, buckets = [], [], []
+    gate_tok_chunks: dict[str, list[torch.Tensor]] = {"gate_v": [], "gate_res": [], "head_gate": []}
     for i in range(0, len(val_tokens), bs):
         toks = val_tokens[i:i + bs]
         t_md = t.make_train_ids(toks, cd, V, cfg)
@@ -172,6 +243,8 @@ def evaluate_val_shard(model, cd, cfg, cfg_args, val_shard: str, device: str, se
         ids = torch.from_numpy(toks[:, :-1]).to(dev)
         tgt = torch.from_numpy(toks[:, 1:]).to(dev)
         mem = {k: torch.from_numpy(v).to(dev) for k, v in t_md.items()}
+        for k_g in gate_buffers:
+            gate_buffers[k_g].clear()
         with torch.autocast(device_type=dev.type, dtype=torch.bfloat16, enabled=(dev.type == "cuda")):
             logits = model(ids, **mem)
             lg = logits.float().reshape(-1, V)
@@ -181,15 +254,36 @@ def evaluate_val_shard(model, cd, cfg, cfg_args, val_shard: str, device: str, se
         losses.append(loss.cpu())
         accs.append(acc.cpu())
         buckets.append(torch.from_numpy(b_id).reshape(-1))
+        for k_g in gate_buffers:
+            if gate_buffers[k_g]:
+                # Average across active memory layers for each token -> (B*T,)
+                stacked = torch.stack(gate_buffers[k_g], dim=0).mean(dim=0).reshape(-1)
+                gate_tok_chunks[k_g].append(stacked)
     loss = torch.cat(losses)
     acc = torch.cat(accs)
     bucket = torch.cat(buckets)
-    out = {"val": round(float(loss.mean()), 5), "acc": round(float(acc.mean()), 5)}
+    out: dict = {
+        "zero_memory": getattr(model, "_zero_memory", "none"),
+        "val": round(float(loss.mean()), 5),
+        "acc": round(float(acc.mean()), 5),
+    }
     for b in range(5):
         sel = bucket == b
         if int(sel.sum()) > 0:
             out[f"pc_{b}"] = round(float(loss[sel].mean()), 5)
             out[f"acc_pc_{b}"] = round(float(acc[sel].mean()), 5)
+    gate_summary = {}
+    for k_g, chunks in gate_tok_chunks.items():
+        if chunks:
+            gv = torch.cat(chunks)
+            gs = {"overall": round(float(gv.mean()), 5)}
+            for b in range(5):
+                sel = bucket == b
+                if int(sel.sum()) > 0:
+                    gs[f"pc_{b}"] = round(float(gv[sel].mean()), 5)
+            gate_summary[k_g] = gs
+    if gate_summary:
+        out["gate_openings"] = gate_summary
     return out
 
 
@@ -208,13 +302,15 @@ def make_lm_class():
         )
 
     class ValueMemoryLM(LM):
-        def __init__(self, checkpoint, countdata, device="cuda", max_length=None, batch_size=1, dtype="auto"):
+        def __init__(self, checkpoint, countdata, device="cuda", max_length=None, batch_size=1,
+                     dtype="auto", zero_memory="none"):
             super().__init__()
             self._device = device
             self._batch_size = max(1, int(batch_size))
             (self.model, self.cd, self.cfg, self.cfg_args,
              self.V, self.d, self.layers, self.heads, self._max_length) = \
-                build_model_from_checkpoint(checkpoint, countdata, max_length, device, dtype=dtype)
+                build_model_from_checkpoint(checkpoint, countdata, max_length, device,
+                                            dtype=dtype, zero_memory=zero_memory)
             from transformers import AutoTokenizer
             self.tok = AutoTokenizer.from_pretrained("gpt2")
             self.eot = int(self.tok.eos_token_id)
@@ -397,6 +493,8 @@ def main():
     p.add_argument("--dry-run", action="store_true")
     p.add_argument("--verify-val-shard", default=None,
                    help="Optional path to fineweb_val_000000.bin to verify exact training val-loss parity")
+    p.add_argument("--zero-memory", default="none", choices=["none", "ngram", "all"],
+                   help="Inference-time memory knockout diagnostic: none | ngram (zero 2g/3g) | all (zero word+2g+3g)")
     args = p.parse_args()
 
     user_output = args.output
@@ -407,9 +505,10 @@ def main():
 
     if args.verify_val_shard:
         model, cd, cfg, cfg_args, V, d, layers, heads, seq_len = build_model_from_checkpoint(
-            args.checkpoint, args.countdata, args.max_length, args.device, dtype=args.dtype)
+            args.checkpoint, args.countdata, args.max_length, args.device,
+            dtype=args.dtype, zero_memory=args.zero_memory)
         res = evaluate_val_shard(model, cd, cfg, cfg_args, args.verify_val_shard, args.device, seq_len)
-        print(f"[verify-val] arm={cfg_args['arm']} seq_len={seq_len} {res}")
+        print(f"[verify-val] arm={cfg_args['arm']} zero_memory={args.zero_memory} seq_len={seq_len} {res}")
         if user_output is not None:
             with open(user_output, "w", encoding="utf-8") as f:
                 json.dump(res, f, indent=2)
@@ -419,7 +518,8 @@ def main():
     if args.dry_run:
         # Load and run one tiny forward without lm_eval.
         model, cd, cfg, cfg_args, V, d, layers, heads, seq_len = build_model_from_checkpoint(
-            args.checkpoint, args.countdata, args.max_length, args.device, dtype=args.dtype)
+            args.checkpoint, args.countdata, args.max_length, args.device,
+            dtype=args.dtype, zero_memory=args.zero_memory)
         n_tok = min(64, seq_len)
         toks = np.random.default_rng(0).integers(0, V, size=(1, n_tok + 1), dtype=np.int64)
         md = t.make_train_ids(toks, cd, V, cfg)
@@ -427,12 +527,15 @@ def main():
         mem = {k: torch.from_numpy(v).to(args.device) for k, v in md.items()}
         with torch.no_grad():
             logits = model(ids, **mem)
-        print(f"[dry-run] arm={cfg_args['arm']} dtype={args.dtype} seq_len={seq_len} logits {tuple(logits.shape)} finite={bool(torch.isfinite(logits).all())}")
+        g_info = {k: round(float(torch.stack(v).mean()), 4) for k, v in model._gate_buffers.items() if v}
+        print(f"[dry-run] arm={cfg_args['arm']} zero_memory={args.zero_memory} dtype={args.dtype} "
+              f"seq_len={seq_len} logits {tuple(logits.shape)} finite={bool(torch.isfinite(logits).all())} gates={g_info}")
         return
 
     LM = make_lm_class()
     lm = LM(args.checkpoint, args.countdata, device=args.device,
-            max_length=args.max_length, batch_size=args.batch_size, dtype=args.dtype)
+            max_length=args.max_length, batch_size=args.batch_size,
+            dtype=args.dtype, zero_memory=args.zero_memory)
 
     from lm_eval import simple_evaluate
     kwargs = dict(
