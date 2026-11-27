@@ -1,0 +1,114 @@
+{
+  "preregistration_type": "Pre-unblinding 350M x 5B Sub-Zipf OOS predictions (addendum to frozen b89068c; does NOT alter b89068c)",
+  "frozen_base_preregistration_commit": "b89068c",
+  "run_350m_config": {
+    "layers": 24,
+    "d": 1024,
+    "heads": 16,
+    "train_tokens": 5000000000,
+    "count_tokens": 500000000,
+    "pair_rows_M": 2000000,
+    "n_hi": 1000000,
+    "n_mid": 3000000,
+    "n_3g": 300000,
+    "eff_mid_on_500m_prefix": 1,
+    "headline_hash_control_in_run_350m_5b_sh": "ctrl_hs_pruned"
+  },
+  "heaps_inputs": {
+    "all_pairs_frozen_b89068c": {
+      "c": 23.413,
+      "beta": 0.71368,
+      "U_250M": 23062102,
+      "U_500M": 37821433,
+      "U_5B": 195612435
+    },
+    "mature_pairs_sensitivity": {
+      "beta_mat": 0.99221,
+      "U_mat_2_5B": 27335839,
+      "U_mat_5B": 54377266
+    }
+  },
+  "predictions_350m_ctrl_hs_pruned_primary_U_keep_prefix": {
+    "U_keep_350m": 37821433,
+    "M_350m": 2000000,
+    "lambda_keep_350m": 18.911,
+    "exact_subzipf_s0855": {
+      "pred_5pt": 0.02689,
+      "pi95_5pt": [
+        0.01689,
+        0.03689
+      ],
+      "se_pred_5pt": 0.00314,
+      "pred_3pt_v6k_only": 0.02634
+    },
+    "exact_subzipf_s0823": {
+      "pred_5pt": 0.02688,
+      "pi95_5pt": [
+        0.01663,
+        0.03714
+      ],
+      "se_pred_5pt": 0.00322,
+      "pred_3pt_v6k_only": 0.02627
+    },
+    "ln_U_keep_over_M_tangent": {
+      "pred_5pt": 0.02684,
+      "pi95_5pt": [
+        0.01792,
+        0.03577
+      ],
+      "pred_3pt_v6k_only": 0.02641
+    },
+    "frozen_b89068c_ln_U_all_over_M_ref": {
+      "pred_5pt": 0.0225,
+      "pred_3pt": 0.0198
+    }
+  },
+  "predictions_350m_ctrl_hs_pruned_sensitivity_U_mat_5B": {
+    "U_keep_350m": 54377266,
+    "M_350m": 2000000,
+    "lambda_keep_350m": 27.189,
+    "exact_subzipf_s0855": {
+      "pred_5pt": 0.02859,
+      "pi95_5pt": [
+        0.01914,
+        0.03804
+      ],
+      "pred_3pt_v6k_only": 0.02857
+    }
+  },
+  "predictions_350m_ctrl_hs_unpruned": {
+    "U_all_350m": 195612435,
+    "M_350m": 2000000,
+    "lambda_all_350m": 97.806,
+    "exact_subzipf_s0855": {
+      "pred_5pt": 0.02918,
+      "pi95_5pt": [
+        0.01667,
+        0.04168
+      ],
+      "se_pred_5pt": 0.00393,
+      "pred_3pt_v6k_only": 0.02904
+    },
+    "exact_subzipf_s0823": {
+      "pred_5pt": 0.02903,
+      "pi95_5pt": [
+        0.01633,
+        0.04174
+      ],
+      "pred_3pt_v6k_only": 0.02879
+    },
+    "ln_U_all_over_M_tangent": {
+      "pred_5pt": 0.02973,
+      "pi95_5pt": [
+        0.01757,
+        0.04189
+      ],
+      "pred_3pt_v6k_only": 0.03008
+    }
+  },
+  "falsification_criteria": [
+    "Observed 350M (ctrl_hs_pruned - u123) must remain strictly positive (Theorem 1 collision-dominated regime at lambda_keep ~ 18.9).",
+    "Observed 350M (ctrl_hs_pruned - u123) falls inside the 95% PI [+0.0169, +0.0369] (point estimate +0.0269 vs frozen b89068c +0.0225).",
+    "Non-trivial directional test: because M doubles (1M -> 2M) while U grows only ~1.64x (2^0.7137), pure collision-load models predict 350M gap <= 125M gap (+0.0298), NOT growing proportionally with T or N."
+  ]
+}
