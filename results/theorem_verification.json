@@ -1,97 +1,251 @@
 {
+  "version": "v6.1-calibrated",
   "frozen_preregistration_commit": "b89068c",
-  "lemma1_sandwich_mc": {
-    "U": 4000,
-    "M": 200,
-    "n_trials": 500,
-    "all_keys_satisfy_sandwich": true,
-    "mean_exact_over_lower_ratio": 1.2345,
-    "mc_max_rel_err": 0.0247
-  },
-  "sympy_symbolic_integrals": {
-    "s1_exact_token_weighted": "c0*((M*c0 + 1)*(M*c0 + (M*c0 + U)*log(M*c0 + U)) - (M*c0 + U)*(M*c0 + (M*c0 + 1)*log(M*c0 + 1)))/((M*c0 + 1)*(M*c0 + U))",
-    "s1_piecewise_head": "c0/2 - 1/(2*M**2*c0)",
-    "s1_piecewise_tail": "log((U/(M*c0))**c0)",
-    "s1_piecewise_total": "c0/2 + log(U**(2*c0)/(M*c0)**(2*c0))/2 - 1/(2*M**2*c0)",
-    "s1_key_averaged": "(-M**2*c0**2*(M*c0 + 1) + M**2*c0**2*(M*c0 + U) - (M*c0 + 1)*(M*c0 + U)*(-U + log((M*c0 + U)**(2*M*c0)/(M*c0 + 1)**(2*M*c0)) + 1))/(U*(M*c0 + 1)*(M*c0 + U))",
-    "general_s_neq_1_tail": "Piecewise((c0*(-U**(1 - s) + (M*c0)**((1 - s)/s))/(s - 1), (s > 1) | (s < 1)), (log((U/(M*c0)**(1/s))**c0), True))",
-    "interpretation": "For s=1 with fixed c0 (unnormalized truncated tail on [1, U]), token-weighted integral gives c0 * (ln((U + c0*M)/(1 + c0*M)) - ... ) ~ c0 * ln(U/(c0*M)) = c0*ln(U/M) - c0*ln(c0) when 1 << c0*M << U. If normalized on [1, U] so c0 = 1/ln(U), the leading term becomes 1 - ln(M/ln U)/ln U (not pure ln(U/M)). For general s != 1, the tail scales as power-law (c0/(1-s))*(U^(1-s) - (c0*M)^((1-s)/s)), not ln(U/M). Key-averaged MSE scales as 1 - O((c0*M/U)*ln(U/(c0*M))), not logarithmic."
-  },
-  "model1_collision_load_audit": {
-    "CTRL_hs": {
-      "point_table": [
-        {
-          "point": "V=6k M=6k",
-          "U": 411030,
-          "M": 6000,
-          "U_over_M": 68.505,
-          "ln_U_over_M": 4.2269,
-          "obs_delta": 0.025,
-          "pred_5pt_log_um": 0.02618,
-          "resid_5pt_log_um": -0.00118,
-          "pred_3pt_log_um": 0.02655,
-          "resid_3pt_log_um": -0.00155
-        },
-        {
-          "point": "V=6k M=24k",
-          "U": 411030,
-          "M": 24000,
-          "U_over_M": 17.126,
-          "ln_U_over_M": 2.8406,
-          "obs_delta": 0.0159,
-          "pred_5pt_log_um": 0.01233,
-          "resid_5pt_log_um": 0.00357,
-          "pred_3pt_log_um": 0.0128,
-          "resid_3pt_log_um": 0.0031
-        },
-        {
-          "point": "V=6k M=96k",
-          "U": 411030,
-          "M": 96000,
-          "U_over_M": 4.282,
-          "ln_U_over_M": 1.4543,
-          "obs_delta": -0.0025,
-          "pred_5pt_log_um": -0.00151,
-          "resid_5pt_log_um": -0.00099,
-          "pred_3pt_log_um": -0.00095,
-          "resid_3pt_log_um": -0.00155
-        },
-        {
-          "point": "30M M=100k",
-          "U": 5078209,
-          "M": 100000,
-          "U_over_M": 50.782,
-          "ln_U_over_M": 3.9275,
-          "obs_delta": 0.0197,
-          "pred_5pt_log_um": 0.02319,
-          "resid_5pt_log_um": -0.00349,
-          "pred_3pt_log_um": 0.02358,
-          "resid_3pt_log_um": -0.00388
-        },
-        {
-          "point": "125M M=1M",
-          "U": 119277299,
-          "M": 1000000,
-          "U_over_M": 119.277,
-          "ln_U_over_M": 4.7815,
-          "obs_delta": 0.0338,
-          "pred_5pt_log_um": 0.03171,
-          "resid_5pt_log_um": 0.00209,
-          "pred_3pt_log_um": 0.03205,
-          "resid_3pt_log_um": 0.00175
-        }
+  "theorem1_finite_sample_identity": {
+    "sympy_identity_diff_is_zero": true,
+    "assumptions": "Idealized i.i.d. zero-mean key targets (E||v_k||^2 = sigma_v^2), i.i.d. observation noise (E||xi||^2 = sigma_xi^2), uniform hash h, and sample-mean bucket estimator. Zero Zipf / frequency-distribution assumption.",
+    "mc_verification": {
+      "U": 2000,
+      "M": 100,
+      "d": 16,
+      "sigma_v2": 1.0,
+      "sigma_xi2": 8.0,
+      "n_trials": 800,
+      "sample_n_counts": [
+        31,
+        16,
+        41,
+        2,
+        1,
+        1
       ],
-      "candidates_5pt": {
-        "log_U_over_M": {
+      "theory_delta_hash_minus_exact": [
+        1.4558,
+        0.8796,
+        0.6846,
+        -2.8672,
+        -6.875,
+        -6.8869
+      ],
+      "mc_delta_hash_minus_exact": [
+        1.4482,
+        0.8641,
+        0.6701,
+        -2.8552,
+        -6.8282,
+        -6.8136
+      ],
+      "sign_match_all_sampled_keys": true,
+      "max_rel_err_hash_mse": 0.021,
+      "max_rel_err_exact_mse": 0.0209,
+      "frac_keys_pooling_wins_negative_delta": 0.8735
+    }
+  },
+  "theorem2_spectral_thresholds": {
+    "target_definition": "1-gram residual target v_k^{res} = v_k^{bigram} - v_{word(k)}, so R_prune = E_top + E_tail is exact 1-gram fallback residual risk.",
+    "c_lo_formula": "r*sigma_xi2/(E_top*d)",
+    "c_hi_formula": "sigma_xi2*(d - r)/(E_tail*d)",
+    "ratio_c_hi_over_c_lo": "E_top*(d - r)/(E_tail*r)",
+    "existence_condition_c_lo_lt_c_hi": "eta_r = E_top / (E_top + E_tail) > r / d",
+    "prediction_band_r_eq_d_over_4": {
+      "eta=0.60": 4.5,
+      "eta=0.65": 5.57,
+      "eta=0.70": 7.0,
+      "eta=0.75": 9.0,
+      "eta=0.80": 12.0,
+      "eta=0.85": 17.0
+    },
+    "status_note": "Given a noise-debiased estimate of eta_r (e.g., split-half cross-covariance on ultra-high-count full-rank keys), the ratio c_hi/c_lo has no additional free parameters. Empirical architecture thresholds 10/100 (10x) were chosen prior to this formula and are retrospectively consistent with eta_{d/4} in [0.65, 0.80] (band [5.57x, 12.00x], 9.00x at eta=0.75)."
+  },
+  "proposition1_subzipf_integral": {
+    "empirical_bigram_zipf_exponents": {
+      "V6000_2_42M_tokens_rank_10_10k": 0.823,
+      "FineWeb_30M_tokens_rank_100_100k": 0.855,
+      "note": "Measured directly from bigram frequency-rank curves, NEVER fitted to NLL."
+    },
+    "exact_integral_formula": "R_coll(U_S, M) / P_S = int_0^1 (1 + ((1-s)/lambda_S) * t^(-s/(1-s)))^(-2) dt, lambda_S = U_S / M",
+    "asymptotic_formula_s_in_0_5_to_1": "1 - C_exact(s) * lambda_S^(-(1-s)/s) + O(lambda_S^(-(2-s)/s))",
+    "C_exact_formula": "((1-s)/s^2) * (pi / sin(pi*(1-s)/s)) * (1-s)^((1-s)/s)",
+    "numerical_checks": [
+      {
+        "s": 0.8,
+        "alpha_coll": 0.25,
+        "C_exact": 0.9285,
+        "C_piecewise": 0.5944,
+        "lam_100_exact_integral": 0.70772,
+        "lam_100_asym_closed_form": 0.70639,
+        "lam_100_rel_err_pct": 0.188,
+        "lam_10_exact_integral": 0.49104,
+        "lam_10_asym_closed_form": 0.47788
+      },
+      {
+        "s": 0.823,
+        "alpha_coll": 0.2151,
+        "C_exact": 0.9045,
+        "C_piecewise": 0.6222,
+        "lam_100_exact_integral": 0.66501,
+        "lam_100_asym_closed_form": 0.66404,
+        "lam_100_rel_err_pct": 0.146,
+        "lam_10_exact_integral": 0.45833,
+        "lam_10_asym_closed_form": 0.44874
+      },
+      {
+        "s": 0.855,
+        "alpha_coll": 0.1696,
+        "C_exact": 0.8842,
+        "C_piecewise": 0.6644,
+        "lam_100_exact_integral": 0.59567,
+        "lam_100_asym_closed_form": 0.59508,
+        "lam_100_rel_err_pct": 0.099,
+        "lam_10_exact_integral": 0.4075,
+        "lam_10_asym_closed_form": 0.40164
+      },
+      {
+        "s": 0.9,
+        "alpha_coll": 0.1111,
+        "C_exact": 0.878,
+        "C_piecewise": 0.7335,
+        "lam_100_exact_integral": 0.47389,
+        "lam_100_asym_closed_form": 0.47364,
+        "lam_100_rel_err_pct": 0.053,
+        "lam_10_exact_integral": 0.32267,
+        "lam_10_asym_closed_form": 0.32018
+      }
+    ],
+    "legacy_s1_unnorm_sympy_ref": "c0*((M*c0 + 1)*(M*c0 + (M*c0 + U)*log(M*c0 + U)) - (M*c0 + U)*(M*c0 + (M*c0 + 1)*log(M*c0 + 1)))/((M*c0 + 1)*(M*c0 + U))"
+  },
+  "model1_collision_load_fits": {
+    "CTRL_hs_unpruned_U_all": {
+      "U_active_5pt": [
+        411030,
+        411030,
+        411030,
+        5078209,
+        119277299
+      ],
+      "M_5pt": [
+        6000,
+        24000,
+        96000,
+        100000,
+        1000000
+      ],
+      "U_active_350m": 195612435,
+      "M_350m": 2000000,
+      "lambda_350m": 97.806,
+      "candidates": {
+        "exact_subzipf_s0855": {
           "n": 5,
           "k_regression_params": 2,
+          "df": 3,
+          "p_likelihood_params": 3,
+          "params": {
+            "a": 0.115509,
+            "b": -0.039453
+          },
+          "rss": 3.3847e-05,
+          "rmse": 0.002602,
+          "residual_se": 0.003359,
+          "r2": 0.95334,
+          "adj_r2": 0.93779,
+          "aic": -53.515,
+          "bic": -54.687,
+          "pred": [
+            0.02629,
+            0.01336,
+            -0.00219,
+            0.02372,
+            0.03072
+          ],
+          "residuals": [
+            -0.00129,
+            0.00254,
+            -0.00031,
+            -0.00402,
+            0.00308
+          ],
+          "pred_350m": 0.02918,
+          "se_pred_350m": 0.00393,
+          "tcrit_95": 3.1824,
+          "pi95_350m": [
+            0.01667,
+            0.04168
+          ],
+          "v6k_3pt_fit": {
+            "r2_3pt": 0.98068,
+            "a_3pt": 0.112391,
+            "b_3pt": -0.037737,
+            "oos_30m_pred": 0.02373,
+            "oos_30m_obs": 0.0197,
+            "oos_30m_rel_err_pct": 20.5,
+            "semi_oos_125m_pred": 0.03054,
+            "semi_oos_125m_obs": 0.0338,
+            "semi_oos_125m_rel_err_pct": -9.6,
+            "true_oos_350m_pred": 0.02904
+          }
+        },
+        "exact_subzipf_s0823": {
+          "n": 5,
+          "k_regression_params": 2,
+          "df": 3,
+          "p_likelihood_params": 3,
+          "params": {
+            "a": 0.103539,
+            "b": -0.039656
+          },
+          "rss": 3.5052e-05,
+          "rmse": 0.002648,
+          "residual_se": 0.003418,
+          "r2": 0.95168,
+          "adj_r2": 0.93558,
+          "aic": -53.341,
+          "bic": -54.512,
+          "pred": [
+            0.0263,
+            0.01362,
+            -0.00233,
+            0.02384,
+            0.03048
+          ],
+          "residuals": [
+            -0.0013,
+            0.00228,
+            -0.00017,
+            -0.00414,
+            0.00332
+          ],
+          "pred_350m": 0.02903,
+          "se_pred_350m": 0.00399,
+          "tcrit_95": 3.1824,
+          "pi95_350m": [
+            0.01633,
+            0.04174
+          ],
+          "v6k_3pt_fit": {
+            "r2_3pt": 0.98405,
+            "a_3pt": 0.100301,
+            "b_3pt": -0.037753,
+            "oos_30m_pred": 0.02375,
+            "oos_30m_obs": 0.0197,
+            "oos_30m_rel_err_pct": 20.6,
+            "semi_oos_125m_pred": 0.03019,
+            "semi_oos_125m_obs": 0.0338,
+            "semi_oos_125m_rel_err_pct": -10.7,
+            "true_oos_350m_pred": 0.02879
+          }
+        },
+        "ln_U_over_M_tangent": {
+          "n": 5,
+          "k_regression_params": 2,
+          "df": 3,
           "p_likelihood_params": 3,
           "params": {
             "a": 0.009986,
             "b": -0.016033
           },
-          "rss": 3.16e-05,
+          "rss": 3.1597e-05,
           "rmse": 0.002514,
+          "residual_se": 0.003245,
           "r2": 0.95645,
           "adj_r2": 0.94193,
           "aic": -53.859,
@@ -109,47 +263,39 @@
             -0.00099,
             -0.00349,
             0.00209
-          ]
-        },
-        "log_M_only": {
-          "n": 5,
-          "k_regression_params": 2,
-          "p_likelihood_params": 3,
-          "params": {
-            "a": 0.00147,
-            "b": 0.002039
-          },
-          "rss": 0.0006942,
-          "rmse": 0.011783,
-          "r2": 0.0431,
-          "adj_r2": -0.27587,
-          "aic": -38.411,
-          "bic": -39.583,
-          "pred": [
-            0.01483,
-            0.01686,
-            0.0189,
-            0.01896,
-            0.02235
           ],
-          "residuals": [
-            0.01017,
-            -0.00096,
-            -0.0214,
-            0.00074,
-            0.01145
-          ]
+          "pred_350m": 0.02973,
+          "se_pred_350m": 0.00382,
+          "tcrit_95": 3.1824,
+          "pi95_350m": [
+            0.01757,
+            0.04189
+          ],
+          "v6k_3pt_fit": {
+            "r2_3pt": 0.96328,
+            "a_3pt": 0.009919,
+            "b_3pt": -0.015375,
+            "oos_30m_pred": 0.02358,
+            "oos_30m_obs": 0.0197,
+            "oos_30m_rel_err_pct": 19.7,
+            "semi_oos_125m_pred": 0.03205,
+            "semi_oos_125m_obs": 0.0338,
+            "semi_oos_125m_rel_err_pct": -5.2,
+            "true_oos_350m_pred": 0.03008
+          }
         },
         "linear_U_over_M_null": {
           "n": 5,
           "k_regression_params": 2,
+          "df": 3,
           "p_likelihood_params": 3,
           "params": {
             "a": 0.000269,
             "b": 0.004412
           },
-          "rss": 0.00012696,
+          "rss": 0.000126962,
           "rmse": 0.005039,
+          "residual_se": 0.006505,
           "r2": 0.82499,
           "adj_r2": 0.76666,
           "aic": -46.905,
@@ -167,17 +313,88 @@
             -0.00806,
             0.00165,
             -0.00265
-          ]
+          ],
+          "pred_350m": 0.03069,
+          "se_pred_350m": 0.00784,
+          "tcrit_95": 3.1824,
+          "pi95_350m": [
+            0.00573,
+            0.05564
+          ],
+          "v6k_3pt_fit": {
+            "r2_3pt": 0.74766,
+            "a_3pt": 0.000356,
+            "b_3pt": 0.002117,
+            "oos_30m_pred": 0.02022,
+            "oos_30m_obs": 0.0197,
+            "oos_30m_rel_err_pct": 2.6,
+            "semi_oos_125m_pred": 0.04463,
+            "semi_oos_125m_obs": 0.0338,
+            "semi_oos_125m_rel_err_pct": 32.1,
+            "true_oos_350m_pred": 0.03698
+          }
+        },
+        "ln_M_only_null": {
+          "n": 5,
+          "k_regression_params": 2,
+          "df": 3,
+          "p_likelihood_params": 3,
+          "params": {
+            "a": 0.00147,
+            "b": 0.002039
+          },
+          "rss": 0.0006942,
+          "rmse": 0.011783,
+          "residual_se": 0.015212,
+          "r2": 0.0431,
+          "adj_r2": -0.27587,
+          "aic": -38.411,
+          "bic": -39.583,
+          "pred": [
+            0.01483,
+            0.01686,
+            0.0189,
+            0.01896,
+            0.02235
+          ],
+          "residuals": [
+            0.01017,
+            -0.00096,
+            -0.0214,
+            0.00074,
+            0.01145
+          ],
+          "pred_350m": 0.02337,
+          "se_pred_350m": 0.02148,
+          "tcrit_95": 3.1824,
+          "pi95_350m": [
+            -0.04501,
+            0.09174
+          ],
+          "v6k_3pt_fit": {
+            "r2_3pt": 0.96328,
+            "a_3pt": -0.009919,
+            "b_3pt": 0.112836,
+            "oos_30m_pred": -0.00135,
+            "oos_30m_obs": 0.0197,
+            "oos_30m_rel_err_pct": -106.9,
+            "semi_oos_125m_pred": -0.02419,
+            "semi_oos_125m_obs": 0.0338,
+            "semi_oos_125m_rel_err_pct": -171.6,
+            "true_oos_350m_pred": -0.03107
+          }
         },
         "constant_null": {
           "n": 5,
           "k_regression_params": 1,
+          "df": 4,
           "p_likelihood_params": 2,
           "params": {
             "b": 0.01838
           },
-          "rss": 0.00072547,
+          "rss": 0.000725468,
           "rmse": 0.012045,
+          "residual_se": 0.013467,
           "r2": 0.0,
           "adj_r2": 0.0,
           "aic": -40.191,
@@ -195,160 +412,376 @@
             -0.02088,
             0.00132,
             0.01542
+          ],
+          "pred_350m": 0.01838,
+          "se_pred_350m": 0.01475,
+          "tcrit_95": 2.7764,
+          "pi95_350m": [
+            -0.02258,
+            0.05934
           ]
         }
       },
-      "zipf_sensitivity": {
-        "normalized_1_over_ZU": {
-          "s=0.8": {
-            "3pt_r2": 0.98599,
-            "3pt_adj_r2": 0.97199,
-            "5pt_r2": 0.92971,
-            "5pt_adj_r2": 0.90628,
-            "5pt_aic": -51.466,
-            "5pt_bic": -52.638
+      "point_tables": {
+        "exact_subzipf_s0855": [
+          {
+            "point": "V=6k M=6k",
+            "U_active": 411030,
+            "M": 6000,
+            "lambda_U_over_M": 68.505,
+            "feature_x": 0.56911,
+            "obs_delta": 0.025,
+            "pred_5pt": 0.02629,
+            "resid_5pt": -0.00129,
+            "pred_3pt": 0.02623,
+            "resid_3pt": -0.00123,
+            "oos_status": "in-sample"
           },
-          "s=1.0": {
-            "3pt_r2": 0.96168,
-            "3pt_adj_r2": 0.92337,
-            "5pt_r2": 0.62638,
-            "5pt_adj_r2": 0.50183,
-            "5pt_aic": -43.113,
-            "5pt_bic": -44.285
+          {
+            "point": "V=6k M=24k",
+            "U_active": 411030,
+            "M": 24000,
+            "lambda_U_over_M": 17.126,
+            "feature_x": 0.45726,
+            "obs_delta": 0.0159,
+            "pred_5pt": 0.01336,
+            "resid_5pt": 0.00254,
+            "pred_3pt": 0.01365,
+            "resid_3pt": 0.00225,
+            "oos_status": "in-sample"
           },
-          "s=1.2": {
-            "3pt_r2": 0.93418,
-            "3pt_adj_r2": 0.86836,
-            "5pt_r2": 0.04438,
-            "5pt_adj_r2": -0.27416,
-            "5pt_aic": -38.418,
-            "5pt_bic": -39.589
+          {
+            "point": "V=6k M=96k",
+            "U_active": 411030,
+            "M": 96000,
+            "lambda_U_over_M": 4.282,
+            "feature_x": 0.32258,
+            "obs_delta": -0.0025,
+            "pred_5pt": -0.00219,
+            "resid_5pt": -0.00031,
+            "pred_3pt": -0.00148,
+            "resid_3pt": -0.00102,
+            "oos_status": "in-sample"
+          },
+          {
+            "point": "30M M=100k",
+            "U_active": 5078209,
+            "M": 100000,
+            "lambda_U_over_M": 50.782,
+            "feature_x": 0.54693,
+            "obs_delta": 0.0197,
+            "pred_5pt": 0.02372,
+            "resid_5pt": -0.00402,
+            "pred_3pt": 0.02373,
+            "resid_3pt": -0.00403,
+            "oos_status": "OOS (measured U)"
+          },
+          {
+            "point": "125M M=1M",
+            "U_active": 119277299,
+            "M": 1000000,
+            "lambda_U_over_M": 119.277,
+            "feature_x": 0.6075,
+            "obs_delta": 0.0338,
+            "pred_5pt": 0.03072,
+            "resid_5pt": 0.00308,
+            "pred_3pt": 0.03054,
+            "resid_3pt": 0.00326,
+            "oos_status": "semi-OOS (Heaps U)"
           }
-        },
-        "fixed_c0_truncated": {
-          "s=0.8": {
-            "3pt_r2": 0.9637,
-            "3pt_adj_r2": 0.92741,
-            "5pt_r2": 0.72537,
-            "5pt_adj_r2": 0.63382,
-            "5pt_aic": -44.652,
-            "5pt_bic": -45.824
+        ],
+        "ln_U_over_M_tangent": [
+          {
+            "point": "V=6k M=6k",
+            "U_active": 411030,
+            "M": 6000,
+            "lambda_U_over_M": 68.505,
+            "feature_x": 4.22691,
+            "obs_delta": 0.025,
+            "pred_5pt": 0.02618,
+            "resid_5pt": -0.00118,
+            "pred_3pt": 0.02655,
+            "resid_3pt": -0.00155,
+            "oos_status": "in-sample"
           },
-          "s=1.0": {
-            "3pt_r2": 0.96122,
-            "3pt_adj_r2": 0.92243,
-            "5pt_r2": 0.95593,
-            "5pt_adj_r2": 0.94124,
-            "5pt_aic": -53.8,
-            "5pt_bic": -54.972
+          {
+            "point": "V=6k M=24k",
+            "U_active": 411030,
+            "M": 24000,
+            "lambda_U_over_M": 17.126,
+            "feature_x": 2.84061,
+            "obs_delta": 0.0159,
+            "pred_5pt": 0.01233,
+            "resid_5pt": 0.00357,
+            "pred_3pt": 0.0128,
+            "resid_3pt": 0.0031,
+            "oos_status": "in-sample"
           },
-          "s=1.2": {
-            "3pt_r2": 0.93428,
-            "3pt_adj_r2": 0.86855,
-            "5pt_r2": 0.03639,
-            "5pt_adj_r2": -0.28482,
-            "5pt_aic": -38.376,
-            "5pt_bic": -39.548
+          {
+            "point": "V=6k M=96k",
+            "U_active": 411030,
+            "M": 96000,
+            "lambda_U_over_M": 4.282,
+            "feature_x": 1.45432,
+            "obs_delta": -0.0025,
+            "pred_5pt": -0.00151,
+            "resid_5pt": -0.00099,
+            "pred_3pt": -0.00095,
+            "resid_3pt": -0.00155,
+            "oos_status": "in-sample"
+          },
+          {
+            "point": "30M M=100k",
+            "U_active": 5078209,
+            "M": 100000,
+            "lambda_U_over_M": 50.782,
+            "feature_x": 3.92754,
+            "obs_delta": 0.0197,
+            "pred_5pt": 0.02319,
+            "resid_5pt": -0.00349,
+            "pred_3pt": 0.02358,
+            "resid_3pt": -0.00388,
+            "oos_status": "OOS (measured U)"
+          },
+          {
+            "point": "125M M=1M",
+            "U_active": 119277299,
+            "M": 1000000,
+            "lambda_U_over_M": 119.277,
+            "feature_x": 4.78145,
+            "obs_delta": 0.0338,
+            "pred_5pt": 0.03171,
+            "resid_5pt": 0.00209,
+            "pred_3pt": 0.03205,
+            "resid_3pt": 0.00175,
+            "oos_status": "semi-OOS (Heaps U)"
           }
-        }
+        ]
       }
     },
-    "CTRL_hs_pruned": {
-      "point_table": [
-        {
-          "point": "V=6k M=6k",
-          "U": 411030,
-          "M": 6000,
-          "U_over_M": 68.505,
-          "ln_U_over_M": 4.2269,
-          "obs_delta": 0.0165,
-          "pred_5pt_log_um": 0.01943,
-          "resid_5pt_log_um": -0.00293,
-          "pred_3pt_log_um": 0.01727,
-          "resid_3pt_log_um": -0.00077
-        },
-        {
-          "point": "V=6k M=24k",
-          "U": 411030,
-          "M": 24000,
-          "U_over_M": 17.126,
-          "ln_U_over_M": 2.8406,
-          "obs_delta": 0.009,
-          "pred_5pt_log_um": 0.00766,
-          "resid_5pt_log_um": 0.00134,
-          "pred_3pt_log_um": 0.00747,
-          "resid_3pt_log_um": 0.00153
-        },
-        {
-          "point": "V=6k M=96k",
-          "U": 411030,
-          "M": 96000,
-          "U_over_M": 4.282,
-          "ln_U_over_M": 1.4543,
-          "obs_delta": -0.0031,
-          "pred_5pt_log_um": -0.00411,
-          "resid_5pt_log_um": 0.00101,
-          "pred_3pt_log_um": -0.00233,
-          "resid_3pt_log_um": -0.00077
-        },
-        {
-          "point": "30M M=100k",
-          "U": 5078209,
-          "M": 100000,
-          "U_over_M": 50.782,
-          "ln_U_over_M": 3.9275,
-          "obs_delta": 0.0118,
-          "pred_5pt_log_um": 0.01689,
-          "resid_5pt_log_um": -0.00509,
-          "pred_3pt_log_um": 0.01515,
-          "resid_3pt_log_um": -0.00335
-        },
-        {
-          "point": "125M M=1M",
-          "U": 119277299,
-          "M": 1000000,
-          "U_over_M": 119.277,
-          "ln_U_over_M": 4.7815,
-          "obs_delta": 0.0298,
-          "pred_5pt_log_um": 0.02414,
-          "resid_5pt_log_um": 0.00566,
-          "pred_3pt_log_um": 0.02119,
-          "resid_3pt_log_um": 0.00861
-        }
+    "CTRL_hs_pruned_U_keep_prefix": {
+      "U_active_5pt": [
+        31106,
+        31106,
+        31106,
+        366259,
+        23062102
       ],
-      "candidates_5pt": {
-        "log_U_over_M": {
+      "M_5pt": [
+        6000,
+        24000,
+        96000,
+        100000,
+        1000000
+      ],
+      "U_active_350m": 37821433,
+      "M_350m": 2000000,
+      "lambda_350m": 18.911,
+      "candidates": {
+        "exact_subzipf_s0855": {
           "n": 5,
           "k_regression_params": 2,
+          "df": 3,
           "p_likelihood_params": 3,
           "params": {
-            "a": 0.00849,
-            "b": -0.016459
+            "a": 0.075756,
+            "b": -0.008414
           },
-          "rss": 6.935e-05,
-          "rmse": 0.003724,
-          "r2": 0.87854,
-          "adj_r2": 0.83805,
-          "aic": -49.929,
-          "bic": -51.101,
+          "rss": 1.9002e-05,
+          "rmse": 0.001949,
+          "residual_se": 0.002517,
+          "r2": 0.96672,
+          "adj_r2": 0.95562,
+          "aic": -56.402,
+          "bic": -57.574,
           "pred": [
-            0.01943,
-            0.00766,
-            -0.00411,
-            0.01689,
-            0.02414
+            0.01752,
+            0.00646,
+            -0.00296,
+            0.01479,
+            0.0282
           ],
           "residuals": [
-            -0.00293,
-            0.00134,
-            0.00101,
-            -0.00509,
-            0.00566
-          ]
+            -0.00102,
+            0.00254,
+            -0.00014,
+            -0.00299,
+            0.0016
+          ],
+          "pred_350m": 0.02689,
+          "se_pred_350m": 0.00314,
+          "tcrit_95": 3.1824,
+          "pi95_350m": [
+            0.01689,
+            0.03689
+          ],
+          "v6k_3pt_fit": {
+            "r2_3pt": 0.96772,
+            "a_3pt": 0.071883,
+            "b_3pt": -0.007165,
+            "oos_30m_pred": 0.01485,
+            "oos_30m_obs": 0.0118,
+            "oos_30m_rel_err_pct": 25.9,
+            "semi_oos_125m_pred": 0.02757,
+            "semi_oos_125m_obs": 0.0298,
+            "semi_oos_125m_rel_err_pct": -7.5,
+            "true_oos_350m_pred": 0.02634
+          }
         },
-        "log_M_only": {
+        "exact_subzipf_s0823": {
           "n": 5,
           "k_regression_params": 2,
+          "df": 3,
+          "p_likelihood_params": 3,
+          "params": {
+            "a": 0.065948,
+            "b": -0.007701
+          },
+          "rss": 1.9978e-05,
+          "rmse": 0.001999,
+          "residual_se": 0.002581,
+          "r2": 0.96501,
+          "adj_r2": 0.95334,
+          "aic": -56.152,
+          "bic": -57.323,
+          "pred": [
+            0.01758,
+            0.00637,
+            -0.00292,
+            0.01482,
+            0.02815
+          ],
+          "residuals": [
+            -0.00108,
+            0.00263,
+            -0.00018,
+            -0.00302,
+            0.00165
+          ],
+          "pred_350m": 0.02688,
+          "se_pred_350m": 0.00322,
+          "tcrit_95": 3.1824,
+          "pi95_350m": [
+            0.01663,
+            0.03714
+          ],
+          "v6k_3pt_fit": {
+            "r2_3pt": 0.96473,
+            "a_3pt": 0.062403,
+            "b_3pt": -0.006454,
+            "oos_30m_pred": 0.01486,
+            "oos_30m_obs": 0.0118,
+            "oos_30m_rel_err_pct": 25.9,
+            "semi_oos_125m_pred": 0.02747,
+            "semi_oos_125m_obs": 0.0298,
+            "semi_oos_125m_rel_err_pct": -7.8,
+            "true_oos_350m_pred": 0.02627
+          }
+        },
+        "ln_U_over_M_tangent": {
+          "n": 5,
+          "k_regression_params": 2,
+          "df": 3,
+          "p_likelihood_params": 3,
+          "params": {
+            "a": 0.007403,
+            "b": 0.00508
+          },
+          "rss": 1.5177e-05,
+          "rmse": 0.001742,
+          "residual_se": 0.002249,
+          "r2": 0.97342,
+          "adj_r2": 0.96456,
+          "aic": -57.526,
+          "bic": -58.698,
+          "pred": [
+            0.01726,
+            0.007,
+            -0.00326,
+            0.01469,
+            0.02831
+          ],
+          "residuals": [
+            -0.00076,
+            0.002,
+            0.00016,
+            -0.00289,
+            0.00149
+          ],
+          "pred_350m": 0.02684,
+          "se_pred_350m": 0.0028,
+          "tcrit_95": 3.1824,
+          "pi95_350m": [
+            0.01792,
+            0.03577
+          ],
+          "v6k_3pt_fit": {
+            "r2_3pt": 0.98197,
+            "a_3pt": 0.007069,
+            "b_3pt": 0.005633,
+            "oos_30m_pred": 0.01481,
+            "oos_30m_obs": 0.0118,
+            "oos_30m_rel_err_pct": 25.5,
+            "semi_oos_125m_pred": 0.02782,
+            "semi_oos_125m_obs": 0.0298,
+            "semi_oos_125m_rel_err_pct": -6.7,
+            "true_oos_350m_pred": 0.02641
+          }
+        },
+        "linear_U_over_M_null": {
+          "n": 5,
+          "k_regression_params": 2,
+          "df": 3,
+          "p_likelihood_params": 3,
+          "params": {
+            "a": 0.001139,
+            "b": 0.005164
+          },
+          "rss": 0.00011833,
+          "rmse": 0.004865,
+          "residual_se": 0.00628,
+          "r2": 0.79275,
+          "adj_r2": 0.72366,
+          "aic": -47.257,
+          "bic": -48.429,
+          "pred": [
+            0.01107,
+            0.00664,
+            0.00553,
+            0.00933,
+            0.03142
+          ],
+          "residuals": [
+            0.00543,
+            0.00236,
+            -0.00863,
+            0.00247,
+            -0.00162
+          ],
+          "pred_350m": 0.0267,
+          "se_pred_350m": 0.00801,
+          "tcrit_95": 3.1824,
+          "pi95_350m": [
+            0.00121,
+            0.05219
+          ],
+          "v6k_3pt_fit": {
+            "r2_3pt": 0.79638,
+            "a_3pt": 0.003432,
+            "b_3pt": -0.000317,
+            "oos_30m_pred": 0.01225,
+            "oos_30m_obs": 0.0118,
+            "oos_30m_rel_err_pct": 3.8,
+            "semi_oos_125m_pred": 0.07882,
+            "semi_oos_125m_obs": 0.0298,
+            "semi_oos_125m_rel_err_pct": 164.5,
+            "true_oos_350m_pred": 0.06458
+          }
+        },
+        "ln_M_only_null": {
+          "n": 5,
+          "k_regression_params": 2,
+          "df": 3,
           "p_likelihood_params": 3,
           "params": {
             "a": 0.002405,
@@ -356,6 +789,7 @@
           },
           "rss": 0.00048723,
           "rmse": 0.009871,
+          "residual_se": 0.012744,
           "r2": 0.14662,
           "adj_r2": -0.13784,
           "aic": -40.181,
@@ -373,46 +807,38 @@
             -0.01675,
             -0.00195,
             0.01051
-          ]
-        },
-        "linear_U_over_M_null": {
-          "n": 5,
-          "k_regression_params": 2,
-          "p_likelihood_params": 3,
-          "params": {
-            "a": 0.000253,
-            "b": -0.000348
-          },
-          "rss": 4.058e-05,
-          "rmse": 0.002849,
-          "r2": 0.92892,
-          "adj_r2": 0.90522,
-          "aic": -52.608,
-          "bic": -53.78,
-          "pred": [
-            0.01698,
-            0.00398,
-            0.00073,
-            0.01249,
-            0.02981
           ],
-          "residuals": [
-            -0.00048,
-            0.00502,
-            -0.00383,
-            -0.00069,
-            -1e-05
-          ]
+          "pred_350m": 0.02096,
+          "se_pred_350m": 0.018,
+          "tcrit_95": 3.1824,
+          "pi95_350m": [
+            -0.03632,
+            0.07824
+          ],
+          "v6k_3pt_fit": {
+            "r2_3pt": 0.98197,
+            "a_3pt": -0.007069,
+            "b_3pt": 0.078765,
+            "oos_30m_pred": -0.00262,
+            "oos_30m_obs": 0.0118,
+            "oos_30m_rel_err_pct": -122.2,
+            "semi_oos_125m_pred": -0.0189,
+            "semi_oos_125m_obs": 0.0298,
+            "semi_oos_125m_rel_err_pct": -163.4,
+            "true_oos_350m_pred": -0.0238
+          }
         },
         "constant_null": {
           "n": 5,
           "k_regression_params": 1,
+          "df": 4,
           "p_likelihood_params": 2,
           "params": {
             "b": 0.0128
           },
           "rss": 0.00057094,
           "rmse": 0.010686,
+          "residual_se": 0.011947,
           "r2": 0.0,
           "adj_r2": 0.0,
           "aic": -41.388,
@@ -430,86 +856,622 @@
             -0.0159,
             -0.001,
             0.017
+          ],
+          "pred_350m": 0.0128,
+          "se_pred_350m": 0.01309,
+          "tcrit_95": 2.7764,
+          "pi95_350m": [
+            -0.02354,
+            0.04914
           ]
         }
       },
-      "zipf_sensitivity": {
-        "normalized_1_over_ZU": {
-          "s=0.8": {
-            "3pt_r2": 0.99635,
-            "3pt_adj_r2": 0.99269,
-            "5pt_r2": 0.79068,
-            "5pt_adj_r2": 0.72091,
-            "5pt_aic": -47.208,
-            "5pt_bic": -48.38
+      "point_tables": {
+        "exact_subzipf_s0855": [
+          {
+            "point": "V=6k M=6k",
+            "U_active": 31106,
+            "M": 6000,
+            "lambda_U_over_M": 5.184,
+            "feature_x": 0.34233,
+            "obs_delta": 0.0165,
+            "pred_5pt": 0.01752,
+            "resid_5pt": -0.00102,
+            "pred_3pt": 0.01744,
+            "resid_3pt": -0.00094,
+            "oos_status": "in-sample"
           },
-          "s=1.0": {
-            "3pt_r2": 0.98084,
-            "3pt_adj_r2": 0.96167,
-            "5pt_r2": 0.42747,
-            "5pt_adj_r2": 0.23662,
-            "5pt_aic": -42.177,
-            "5pt_bic": -43.348
+          {
+            "point": "V=6k M=24k",
+            "U_active": 31106,
+            "M": 24000,
+            "lambda_U_over_M": 1.296,
+            "feature_x": 0.19636,
+            "obs_delta": 0.009,
+            "pred_5pt": 0.00646,
+            "resid_5pt": 0.00254,
+            "pred_3pt": 0.00695,
+            "resid_3pt": 0.00205,
+            "oos_status": "in-sample"
           },
-          "s=1.2": {
-            "3pt_r2": 0.96002,
-            "3pt_adj_r2": 0.92004,
-            "5pt_r2": 0.00097,
-            "5pt_adj_r2": -0.33204,
-            "5pt_aic": -39.393,
-            "5pt_bic": -40.565
+          {
+            "point": "V=6k M=96k",
+            "U_active": 31106,
+            "M": 96000,
+            "lambda_U_over_M": 0.324,
+            "feature_x": 0.07194,
+            "obs_delta": -0.0031,
+            "pred_5pt": -0.00296,
+            "resid_5pt": -0.00014,
+            "pred_3pt": -0.00199,
+            "resid_3pt": -0.00111,
+            "oos_status": "in-sample"
+          },
+          {
+            "point": "30M M=100k",
+            "U_active": 366259,
+            "M": 100000,
+            "lambda_U_over_M": 3.663,
+            "feature_x": 0.30627,
+            "obs_delta": 0.0118,
+            "pred_5pt": 0.01479,
+            "resid_5pt": -0.00299,
+            "pred_3pt": 0.01485,
+            "resid_3pt": -0.00305,
+            "oos_status": "OOS (measured U)"
+          },
+          {
+            "point": "125M M=1M",
+            "U_active": 23062102,
+            "M": 1000000,
+            "lambda_U_over_M": 23.062,
+            "feature_x": 0.48326,
+            "obs_delta": 0.0298,
+            "pred_5pt": 0.0282,
+            "resid_5pt": 0.0016,
+            "pred_3pt": 0.02757,
+            "resid_3pt": 0.00223,
+            "oos_status": "semi-OOS (Heaps U)"
+          }
+        ],
+        "ln_U_over_M_tangent": [
+          {
+            "point": "V=6k M=6k",
+            "U_active": 31106,
+            "M": 6000,
+            "lambda_U_over_M": 5.184,
+            "feature_x": 1.64564,
+            "obs_delta": 0.0165,
+            "pred_5pt": 0.01726,
+            "resid_5pt": -0.00076,
+            "pred_3pt": 0.01727,
+            "resid_3pt": -0.00077,
+            "oos_status": "in-sample"
+          },
+          {
+            "point": "V=6k M=24k",
+            "U_active": 31106,
+            "M": 24000,
+            "lambda_U_over_M": 1.296,
+            "feature_x": 0.25935,
+            "obs_delta": 0.009,
+            "pred_5pt": 0.007,
+            "resid_5pt": 0.002,
+            "pred_3pt": 0.00747,
+            "resid_3pt": 0.00153,
+            "oos_status": "in-sample"
+          },
+          {
+            "point": "V=6k M=96k",
+            "U_active": 31106,
+            "M": 96000,
+            "lambda_U_over_M": 0.324,
+            "feature_x": -1.12695,
+            "obs_delta": -0.0031,
+            "pred_5pt": -0.00326,
+            "resid_5pt": 0.00016,
+            "pred_3pt": -0.00233,
+            "resid_3pt": -0.00077,
+            "oos_status": "in-sample"
+          },
+          {
+            "point": "30M M=100k",
+            "U_active": 366259,
+            "M": 100000,
+            "lambda_U_over_M": 3.663,
+            "feature_x": 1.29817,
+            "obs_delta": 0.0118,
+            "pred_5pt": 0.01469,
+            "resid_5pt": -0.00289,
+            "pred_3pt": 0.01481,
+            "resid_3pt": -0.00301,
+            "oos_status": "OOS (measured U)"
+          },
+          {
+            "point": "125M M=1M",
+            "U_active": 23062102,
+            "M": 1000000,
+            "lambda_U_over_M": 23.062,
+            "feature_x": 3.13819,
+            "obs_delta": 0.0298,
+            "pred_5pt": 0.02831,
+            "resid_5pt": 0.00149,
+            "pred_3pt": 0.02782,
+            "resid_3pt": 0.00198,
+            "oos_status": "semi-OOS (Heaps U)"
+          }
+        ]
+      }
+    },
+    "CTRL_hs_pruned_U_keep_mature_sensitivity": {
+      "U_active_5pt": [
+        31106,
+        31106,
+        31106,
+        366259,
+        27335839
+      ],
+      "M_5pt": [
+        6000,
+        24000,
+        96000,
+        100000,
+        1000000
+      ],
+      "U_active_350m": 54377266,
+      "M_350m": 2000000,
+      "lambda_350m": 27.189,
+      "candidates": {
+        "exact_subzipf_s0855": {
+          "n": 5,
+          "k_regression_params": 2,
+          "df": 3,
+          "p_likelihood_params": 3,
+          "params": {
+            "a": 0.073695,
+            "b": -0.008049
+          },
+          "rss": 1.6024e-05,
+          "rmse": 0.00179,
+          "residual_se": 0.002311,
+          "r2": 0.97193,
+          "adj_r2": 0.96258,
+          "aic": -57.254,
+          "bic": -58.426,
+          "pred": [
+            0.01718,
+            0.00642,
+            -0.00275,
+            0.01452,
+            0.02862
+          ],
+          "residuals": [
+            -0.00068,
+            0.00258,
+            -0.00035,
+            -0.00272,
+            0.00118
+          ],
+          "pred_350m": 0.02859,
+          "se_pred_350m": 0.00297,
+          "tcrit_95": 3.1824,
+          "pi95_350m": [
+            0.01914,
+            0.03804
+          ],
+          "v6k_3pt_fit": {
+            "r2_3pt": 0.96772,
+            "a_3pt": 0.071883,
+            "b_3pt": -0.007165,
+            "oos_30m_pred": 0.01485,
+            "oos_30m_obs": 0.0118,
+            "oos_30m_rel_err_pct": 25.9,
+            "semi_oos_125m_pred": 0.02861,
+            "semi_oos_125m_obs": 0.0298,
+            "semi_oos_125m_rel_err_pct": -4.0,
+            "true_oos_350m_pred": 0.02857
           }
         },
-        "fixed_c0_truncated": {
-          "s=0.8": {
-            "3pt_r2": 0.98227,
-            "3pt_adj_r2": 0.96454,
-            "5pt_r2": 0.86844,
-            "5pt_adj_r2": 0.82458,
-            "5pt_aic": -49.53,
-            "5pt_bic": -50.701
+        "exact_subzipf_s0823": {
+          "n": 5,
+          "k_regression_params": 2,
+          "df": 3,
+          "p_likelihood_params": 3,
+          "params": {
+            "a": 0.064229,
+            "b": -0.00737
           },
-          "s=1.0": {
-            "3pt_r2": 0.9805,
-            "3pt_adj_r2": 0.96101,
-            "5pt_r2": 0.87981,
-            "5pt_adj_r2": 0.83975,
-            "5pt_aic": -49.982,
-            "5pt_bic": -51.153
-          },
-          "s=1.2": {
-            "3pt_r2": 0.96009,
-            "3pt_adj_r2": 0.92019,
-            "5pt_r2": 0.00011,
-            "5pt_adj_r2": -0.33319,
-            "5pt_aic": -39.389,
-            "5pt_bic": -40.561
+          "rss": 1.6999e-05,
+          "rmse": 0.001844,
+          "residual_se": 0.00238,
+          "r2": 0.97023,
+          "adj_r2": 0.9603,
+          "aic": -56.959,
+          "bic": -58.131,
+          "pred": [
+            0.01725,
+            0.00633,
+            -0.00271,
+            0.01456,
+            0.02856
+          ],
+          "residuals": [
+            -0.00075,
+            0.00267,
+            -0.00039,
+            -0.00276,
+            0.00124
+          ],
+          "pred_350m": 0.02853,
+          "se_pred_350m": 0.00305,
+          "tcrit_95": 3.1824,
+          "pi95_350m": [
+            0.01881,
+            0.03825
+          ],
+          "v6k_3pt_fit": {
+            "r2_3pt": 0.96473,
+            "a_3pt": 0.062403,
+            "b_3pt": -0.006454,
+            "oos_30m_pred": 0.01486,
+            "oos_30m_obs": 0.0118,
+            "oos_30m_rel_err_pct": 25.9,
+            "semi_oos_125m_pred": 0.02846,
+            "semi_oos_125m_obs": 0.0298,
+            "semi_oos_125m_rel_err_pct": -4.5,
+            "true_oos_350m_pred": 0.02843
           }
+        },
+        "ln_U_over_M_tangent": {
+          "n": 5,
+          "k_regression_params": 2,
+          "df": 3,
+          "p_likelihood_params": 3,
+          "params": {
+            "a": 0.007168,
+            "b": 0.005081
+          },
+          "rss": 1.2097e-05,
+          "rmse": 0.001555,
+          "residual_se": 0.002008,
+          "r2": 0.97881,
+          "adj_r2": 0.97175,
+          "aic": -58.66,
+          "bic": -59.832,
+          "pred": [
+            0.01688,
+            0.00694,
+            -0.003,
+            0.01439,
+            0.02879
+          ],
+          "residuals": [
+            -0.00038,
+            0.00206,
+            -0.0001,
+            -0.00259,
+            0.00101
+          ],
+          "pred_350m": 0.02876,
+          "se_pred_350m": 0.00258,
+          "tcrit_95": 3.1824,
+          "pi95_350m": [
+            0.02053,
+            0.03698
+          ],
+          "v6k_3pt_fit": {
+            "r2_3pt": 0.98197,
+            "a_3pt": 0.007069,
+            "b_3pt": 0.005633,
+            "oos_30m_pred": 0.01481,
+            "oos_30m_obs": 0.0118,
+            "oos_30m_rel_err_pct": 25.5,
+            "semi_oos_125m_pred": 0.02902,
+            "semi_oos_125m_obs": 0.0298,
+            "semi_oos_125m_rel_err_pct": -2.6,
+            "true_oos_350m_pred": 0.02898
+          }
+        },
+        "linear_U_over_M_null": {
+          "n": 5,
+          "k_regression_params": 2,
+          "df": 3,
+          "p_likelihood_params": 3,
+          "params": {
+            "a": 0.000934,
+            "b": 0.00574
+          },
+          "rss": 0.00013194,
+          "rmse": 0.005137,
+          "residual_se": 0.006632,
+          "r2": 0.76891,
+          "adj_r2": 0.69188,
+          "aic": -46.713,
+          "bic": -47.885,
+          "pred": [
+            0.01058,
+            0.00695,
+            0.00604,
+            0.00916,
+            0.03126
+          ],
+          "residuals": [
+            0.00592,
+            0.00205,
+            -0.00914,
+            0.00264,
+            -0.00146
+          ],
+          "pred_350m": 0.03113,
+          "se_pred_350m": 0.0093,
+          "tcrit_95": 3.1824,
+          "pi95_350m": [
+            0.00154,
+            0.06071
+          ],
+          "v6k_3pt_fit": {
+            "r2_3pt": 0.79638,
+            "a_3pt": 0.003432,
+            "b_3pt": -0.000317,
+            "oos_30m_pred": 0.01225,
+            "oos_30m_obs": 0.0118,
+            "oos_30m_rel_err_pct": 3.8,
+            "semi_oos_125m_pred": 0.09349,
+            "semi_oos_125m_obs": 0.0298,
+            "semi_oos_125m_rel_err_pct": 213.7,
+            "true_oos_350m_pred": 0.09298
+          }
+        },
+        "ln_M_only_null": {
+          "n": 5,
+          "k_regression_params": 2,
+          "df": 3,
+          "p_likelihood_params": 3,
+          "params": {
+            "a": 0.002405,
+            "b": -0.013937
+          },
+          "rss": 0.00048723,
+          "rmse": 0.009871,
+          "residual_se": 0.012744,
+          "r2": 0.14662,
+          "adj_r2": -0.13784,
+          "aic": -40.181,
+          "bic": -41.353,
+          "pred": [
+            0.00699,
+            0.01032,
+            0.01365,
+            0.01375,
+            0.01929
+          ],
+          "residuals": [
+            0.00951,
+            -0.00132,
+            -0.01675,
+            -0.00195,
+            0.01051
+          ],
+          "pred_350m": 0.02096,
+          "se_pred_350m": 0.018,
+          "tcrit_95": 3.1824,
+          "pi95_350m": [
+            -0.03632,
+            0.07824
+          ],
+          "v6k_3pt_fit": {
+            "r2_3pt": 0.98197,
+            "a_3pt": -0.007069,
+            "b_3pt": 0.078765,
+            "oos_30m_pred": -0.00262,
+            "oos_30m_obs": 0.0118,
+            "oos_30m_rel_err_pct": -122.2,
+            "semi_oos_125m_pred": -0.0189,
+            "semi_oos_125m_obs": 0.0298,
+            "semi_oos_125m_rel_err_pct": -163.4,
+            "true_oos_350m_pred": -0.0238
+          }
+        },
+        "constant_null": {
+          "n": 5,
+          "k_regression_params": 1,
+          "df": 4,
+          "p_likelihood_params": 2,
+          "params": {
+            "b": 0.0128
+          },
+          "rss": 0.00057094,
+          "rmse": 0.010686,
+          "residual_se": 0.011947,
+          "r2": 0.0,
+          "adj_r2": 0.0,
+          "aic": -41.388,
+          "bic": -42.169,
+          "pred": [
+            0.0128,
+            0.0128,
+            0.0128,
+            0.0128,
+            0.0128
+          ],
+          "residuals": [
+            0.0037,
+            -0.0038,
+            -0.0159,
+            -0.001,
+            0.017
+          ],
+          "pred_350m": 0.0128,
+          "se_pred_350m": 0.01309,
+          "tcrit_95": 2.7764,
+          "pi95_350m": [
+            -0.02354,
+            0.04914
+          ]
         }
+      },
+      "point_tables": {
+        "exact_subzipf_s0855": [
+          {
+            "point": "V=6k M=6k",
+            "U_active": 31106,
+            "M": 6000,
+            "lambda_U_over_M": 5.184,
+            "feature_x": 0.34233,
+            "obs_delta": 0.0165,
+            "pred_5pt": 0.01718,
+            "resid_5pt": -0.00068,
+            "pred_3pt": 0.01744,
+            "resid_3pt": -0.00094,
+            "oos_status": "in-sample"
+          },
+          {
+            "point": "V=6k M=24k",
+            "U_active": 31106,
+            "M": 24000,
+            "lambda_U_over_M": 1.296,
+            "feature_x": 0.19636,
+            "obs_delta": 0.009,
+            "pred_5pt": 0.00642,
+            "resid_5pt": 0.00258,
+            "pred_3pt": 0.00695,
+            "resid_3pt": 0.00205,
+            "oos_status": "in-sample"
+          },
+          {
+            "point": "V=6k M=96k",
+            "U_active": 31106,
+            "M": 96000,
+            "lambda_U_over_M": 0.324,
+            "feature_x": 0.07194,
+            "obs_delta": -0.0031,
+            "pred_5pt": -0.00275,
+            "resid_5pt": -0.00035,
+            "pred_3pt": -0.00199,
+            "resid_3pt": -0.00111,
+            "oos_status": "in-sample"
+          },
+          {
+            "point": "30M M=100k",
+            "U_active": 366259,
+            "M": 100000,
+            "lambda_U_over_M": 3.663,
+            "feature_x": 0.30627,
+            "obs_delta": 0.0118,
+            "pred_5pt": 0.01452,
+            "resid_5pt": -0.00272,
+            "pred_3pt": 0.01485,
+            "resid_3pt": -0.00305,
+            "oos_status": "OOS (measured U)"
+          },
+          {
+            "point": "125M M=1M",
+            "U_active": 27335839,
+            "M": 1000000,
+            "lambda_U_over_M": 27.336,
+            "feature_x": 0.49762,
+            "obs_delta": 0.0298,
+            "pred_5pt": 0.02862,
+            "resid_5pt": 0.00118,
+            "pred_3pt": 0.02861,
+            "resid_3pt": 0.00119,
+            "oos_status": "semi-OOS (Heaps U)"
+          }
+        ],
+        "ln_U_over_M_tangent": [
+          {
+            "point": "V=6k M=6k",
+            "U_active": 31106,
+            "M": 6000,
+            "lambda_U_over_M": 5.184,
+            "feature_x": 1.64564,
+            "obs_delta": 0.0165,
+            "pred_5pt": 0.01688,
+            "resid_5pt": -0.00038,
+            "pred_3pt": 0.01727,
+            "resid_3pt": -0.00077,
+            "oos_status": "in-sample"
+          },
+          {
+            "point": "V=6k M=24k",
+            "U_active": 31106,
+            "M": 24000,
+            "lambda_U_over_M": 1.296,
+            "feature_x": 0.25935,
+            "obs_delta": 0.009,
+            "pred_5pt": 0.00694,
+            "resid_5pt": 0.00206,
+            "pred_3pt": 0.00747,
+            "resid_3pt": 0.00153,
+            "oos_status": "in-sample"
+          },
+          {
+            "point": "V=6k M=96k",
+            "U_active": 31106,
+            "M": 96000,
+            "lambda_U_over_M": 0.324,
+            "feature_x": -1.12695,
+            "obs_delta": -0.0031,
+            "pred_5pt": -0.003,
+            "resid_5pt": -0.0001,
+            "pred_3pt": -0.00233,
+            "resid_3pt": -0.00077,
+            "oos_status": "in-sample"
+          },
+          {
+            "point": "30M M=100k",
+            "U_active": 366259,
+            "M": 100000,
+            "lambda_U_over_M": 3.663,
+            "feature_x": 1.29817,
+            "obs_delta": 0.0118,
+            "pred_5pt": 0.01439,
+            "resid_5pt": -0.00259,
+            "pred_3pt": 0.01481,
+            "resid_3pt": -0.00301,
+            "oos_status": "OOS (measured U)"
+          },
+          {
+            "point": "125M M=1M",
+            "U_active": 27335839,
+            "M": 1000000,
+            "lambda_U_over_M": 27.336,
+            "feature_x": 3.3082,
+            "obs_delta": 0.0298,
+            "pred_5pt": 0.02879,
+            "resid_5pt": 0.00101,
+            "pred_3pt": 0.02902,
+            "resid_3pt": 0.00078,
+            "oos_status": "semi-OOS (Heaps U)"
+          }
+        ]
       }
     }
   },
-  "proposition1_mid_tier_risk": {
-    "decomposition": "R = R_coll(U, M) + B_rank(r) + V_est(c)",
+  "empirical_scope_125m_buckets": {
     "token_ratio_125m_over_30m": 83.33,
-    "caveat_cross_scale_confound": "30M vs 125M differs by 83.3x tokens (V_est drops ~83x); clean comparison is same-scale u123 vs ctrl_hs_pruned.",
+    "caveat_cross_scale_confound": "30M vs 125M differs by 83.3x tokens (V_est drops ~83x); clean comparisons are same-scale only.",
     "buckets_125m_u123_minus_pruned": {
       "pc_0": {
         "mean_diff": -0.01765,
+        "se": 0.00437,
         "p": 0.0198,
-        "note": "Significantly negative -> global non-lookup/adapter-interaction component exists"
+        "note": "Significantly negative -> global non-lookup/adapter-interaction component"
       },
       "pc_2": {
         "mean_diff": -0.03265,
+        "se": 0.00821,
         "p": 0.0204,
-        "note": "Statistically indistinguishable from pc_4"
+        "note": "Statistically indistinguishable from pc_4 (diff=0.0009, SE~0.010)"
       },
       "pc_3": {
         "mean_diff": -0.01827,
+        "se": 0.0063,
         "p": 0.0374
       },
       "pc_4": {
         "mean_diff": -0.03356,
+        "se": 0.00558,
         "p": 0.0091,
         "note": "Largest point estimate (includes exact 3g hits)"
       }
@@ -549,12 +1511,12 @@
     "caveats": [
       "rho is gradient cosine similarity, not noise correlation (heuristic substitution).",
       "B_conflict(L) is not independently measured.",
-      "L=2->4 drop in rho (0.0227) is smaller than L=2 SD (0.0336)."
+      "L=2->4 drop in rho (-0.0227) is smaller than L=2 SD (0.0336)."
     ]
   },
-  "empirical_boundary_eq_weights": {
+  "boundary1_eq_weights": {
     "n_seeds_plain_eq_weights": 1,
-    "status": "Empirical boundary (single seed; Wave 3 adds seeds 1 & 2)",
+    "status": "Empirical boundary (single seed; Phase-2 Wave 3 adds seeds 1 & 2)",
     "u123_minus_eqW_s0": [
       -0.06976,
       -0.07676,
