@@ -1,0 +1,574 @@
+{
+  "frozen_preregistration_commit": "b89068c",
+  "lemma1_sandwich_mc": {
+    "U": 4000,
+    "M": 200,
+    "n_trials": 500,
+    "all_keys_satisfy_sandwich": true,
+    "mean_exact_over_lower_ratio": 1.2345,
+    "mc_max_rel_err": 0.0247
+  },
+  "sympy_symbolic_integrals": {
+    "s1_exact_token_weighted": "c0*((M*c0 + 1)*(M*c0 + (M*c0 + U)*log(M*c0 + U)) - (M*c0 + U)*(M*c0 + (M*c0 + 1)*log(M*c0 + 1)))/((M*c0 + 1)*(M*c0 + U))",
+    "s1_piecewise_head": "c0/2 - 1/(2*M**2*c0)",
+    "s1_piecewise_tail": "log((U/(M*c0))**c0)",
+    "s1_piecewise_total": "c0/2 + log(U**(2*c0)/(M*c0)**(2*c0))/2 - 1/(2*M**2*c0)",
+    "s1_key_averaged": "(-M**2*c0**2*(M*c0 + 1) + M**2*c0**2*(M*c0 + U) - (M*c0 + 1)*(M*c0 + U)*(-U + log((M*c0 + U)**(2*M*c0)/(M*c0 + 1)**(2*M*c0)) + 1))/(U*(M*c0 + 1)*(M*c0 + U))",
+    "general_s_neq_1_tail": "Piecewise((c0*(-U**(1 - s) + (M*c0)**((1 - s)/s))/(s - 1), (s > 1) | (s < 1)), (log((U/(M*c0)**(1/s))**c0), True))",
+    "interpretation": "For s=1 with fixed c0 (unnormalized truncated tail on [1, U]), token-weighted integral gives c0 * (ln((U + c0*M)/(1 + c0*M)) - ... ) ~ c0 * ln(U/(c0*M)) = c0*ln(U/M) - c0*ln(c0) when 1 << c0*M << U. If normalized on [1, U] so c0 = 1/ln(U), the leading term becomes 1 - ln(M/ln U)/ln U (not pure ln(U/M)). For general s != 1, the tail scales as power-law (c0/(1-s))*(U^(1-s) - (c0*M)^((1-s)/s)), not ln(U/M). Key-averaged MSE scales as 1 - O((c0*M/U)*ln(U/(c0*M))), not logarithmic."
+  },
+  "model1_collision_load_audit": {
+    "CTRL_hs": {
+      "point_table": [
+        {
+          "point": "V=6k M=6k",
+          "U": 411030,
+          "M": 6000,
+          "U_over_M": 68.505,
+          "ln_U_over_M": 4.2269,
+          "obs_delta": 0.025,
+          "pred_5pt_log_um": 0.02618,
+          "resid_5pt_log_um": -0.00118,
+          "pred_3pt_log_um": 0.02655,
+          "resid_3pt_log_um": -0.00155
+        },
+        {
+          "point": "V=6k M=24k",
+          "U": 411030,
+          "M": 24000,
+          "U_over_M": 17.126,
+          "ln_U_over_M": 2.8406,
+          "obs_delta": 0.0159,
+          "pred_5pt_log_um": 0.01233,
+          "resid_5pt_log_um": 0.00357,
+          "pred_3pt_log_um": 0.0128,
+          "resid_3pt_log_um": 0.0031
+        },
+        {
+          "point": "V=6k M=96k",
+          "U": 411030,
+          "M": 96000,
+          "U_over_M": 4.282,
+          "ln_U_over_M": 1.4543,
+          "obs_delta": -0.0025,
+          "pred_5pt_log_um": -0.00151,
+          "resid_5pt_log_um": -0.00099,
+          "pred_3pt_log_um": -0.00095,
+          "resid_3pt_log_um": -0.00155
+        },
+        {
+          "point": "30M M=100k",
+          "U": 5078209,
+          "M": 100000,
+          "U_over_M": 50.782,
+          "ln_U_over_M": 3.9275,
+          "obs_delta": 0.0197,
+          "pred_5pt_log_um": 0.02319,
+          "resid_5pt_log_um": -0.00349,
+          "pred_3pt_log_um": 0.02358,
+          "resid_3pt_log_um": -0.00388
+        },
+        {
+          "point": "125M M=1M",
+          "U": 119277299,
+          "M": 1000000,
+          "U_over_M": 119.277,
+          "ln_U_over_M": 4.7815,
+          "obs_delta": 0.0338,
+          "pred_5pt_log_um": 0.03171,
+          "resid_5pt_log_um": 0.00209,
+          "pred_3pt_log_um": 0.03205,
+          "resid_3pt_log_um": 0.00175
+        }
+      ],
+      "candidates_5pt": {
+        "log_U_over_M": {
+          "n": 5,
+          "k_regression_params": 2,
+          "p_likelihood_params": 3,
+          "params": {
+            "a": 0.009986,
+            "b": -0.016033
+          },
+          "rss": 3.16e-05,
+          "rmse": 0.002514,
+          "r2": 0.95645,
+          "adj_r2": 0.94193,
+          "aic": -53.859,
+          "bic": -55.031,
+          "pred": [
+            0.02618,
+            0.01233,
+            -0.00151,
+            0.02319,
+            0.03171
+          ],
+          "residuals": [
+            -0.00118,
+            0.00357,
+            -0.00099,
+            -0.00349,
+            0.00209
+          ]
+        },
+        "log_M_only": {
+          "n": 5,
+          "k_regression_params": 2,
+          "p_likelihood_params": 3,
+          "params": {
+            "a": 0.00147,
+            "b": 0.002039
+          },
+          "rss": 0.0006942,
+          "rmse": 0.011783,
+          "r2": 0.0431,
+          "adj_r2": -0.27587,
+          "aic": -38.411,
+          "bic": -39.583,
+          "pred": [
+            0.01483,
+            0.01686,
+            0.0189,
+            0.01896,
+            0.02235
+          ],
+          "residuals": [
+            0.01017,
+            -0.00096,
+            -0.0214,
+            0.00074,
+            0.01145
+          ]
+        },
+        "linear_U_over_M_null": {
+          "n": 5,
+          "k_regression_params": 2,
+          "p_likelihood_params": 3,
+          "params": {
+            "a": 0.000269,
+            "b": 0.004412
+          },
+          "rss": 0.00012696,
+          "rmse": 0.005039,
+          "r2": 0.82499,
+          "adj_r2": 0.76666,
+          "aic": -46.905,
+          "bic": -48.077,
+          "pred": [
+            0.02282,
+            0.00901,
+            0.00556,
+            0.01805,
+            0.03645
+          ],
+          "residuals": [
+            0.00218,
+            0.00689,
+            -0.00806,
+            0.00165,
+            -0.00265
+          ]
+        },
+        "constant_null": {
+          "n": 5,
+          "k_regression_params": 1,
+          "p_likelihood_params": 2,
+          "params": {
+            "b": 0.01838
+          },
+          "rss": 0.00072547,
+          "rmse": 0.012045,
+          "r2": 0.0,
+          "adj_r2": 0.0,
+          "aic": -40.191,
+          "bic": -40.972,
+          "pred": [
+            0.01838,
+            0.01838,
+            0.01838,
+            0.01838,
+            0.01838
+          ],
+          "residuals": [
+            0.00662,
+            -0.00248,
+            -0.02088,
+            0.00132,
+            0.01542
+          ]
+        }
+      },
+      "zipf_sensitivity": {
+        "normalized_1_over_ZU": {
+          "s=0.8": {
+            "3pt_r2": 0.98599,
+            "3pt_adj_r2": 0.97199,
+            "5pt_r2": 0.92971,
+            "5pt_adj_r2": 0.90628,
+            "5pt_aic": -51.466,
+            "5pt_bic": -52.638
+          },
+          "s=1.0": {
+            "3pt_r2": 0.96168,
+            "3pt_adj_r2": 0.92337,
+            "5pt_r2": 0.62638,
+            "5pt_adj_r2": 0.50183,
+            "5pt_aic": -43.113,
+            "5pt_bic": -44.285
+          },
+          "s=1.2": {
+            "3pt_r2": 0.93418,
+            "3pt_adj_r2": 0.86836,
+            "5pt_r2": 0.04438,
+            "5pt_adj_r2": -0.27416,
+            "5pt_aic": -38.418,
+            "5pt_bic": -39.589
+          }
+        },
+        "fixed_c0_truncated": {
+          "s=0.8": {
+            "3pt_r2": 0.9637,
+            "3pt_adj_r2": 0.92741,
+            "5pt_r2": 0.72537,
+            "5pt_adj_r2": 0.63382,
+            "5pt_aic": -44.652,
+            "5pt_bic": -45.824
+          },
+          "s=1.0": {
+            "3pt_r2": 0.96122,
+            "3pt_adj_r2": 0.92243,
+            "5pt_r2": 0.95593,
+            "5pt_adj_r2": 0.94124,
+            "5pt_aic": -53.8,
+            "5pt_bic": -54.972
+          },
+          "s=1.2": {
+            "3pt_r2": 0.93428,
+            "3pt_adj_r2": 0.86855,
+            "5pt_r2": 0.03639,
+            "5pt_adj_r2": -0.28482,
+            "5pt_aic": -38.376,
+            "5pt_bic": -39.548
+          }
+        }
+      }
+    },
+    "CTRL_hs_pruned": {
+      "point_table": [
+        {
+          "point": "V=6k M=6k",
+          "U": 411030,
+          "M": 6000,
+          "U_over_M": 68.505,
+          "ln_U_over_M": 4.2269,
+          "obs_delta": 0.0165,
+          "pred_5pt_log_um": 0.01943,
+          "resid_5pt_log_um": -0.00293,
+          "pred_3pt_log_um": 0.01727,
+          "resid_3pt_log_um": -0.00077
+        },
+        {
+          "point": "V=6k M=24k",
+          "U": 411030,
+          "M": 24000,
+          "U_over_M": 17.126,
+          "ln_U_over_M": 2.8406,
+          "obs_delta": 0.009,
+          "pred_5pt_log_um": 0.00766,
+          "resid_5pt_log_um": 0.00134,
+          "pred_3pt_log_um": 0.00747,
+          "resid_3pt_log_um": 0.00153
+        },
+        {
+          "point": "V=6k M=96k",
+          "U": 411030,
+          "M": 96000,
+          "U_over_M": 4.282,
+          "ln_U_over_M": 1.4543,
+          "obs_delta": -0.0031,
+          "pred_5pt_log_um": -0.00411,
+          "resid_5pt_log_um": 0.00101,
+          "pred_3pt_log_um": -0.00233,
+          "resid_3pt_log_um": -0.00077
+        },
+        {
+          "point": "30M M=100k",
+          "U": 5078209,
+          "M": 100000,
+          "U_over_M": 50.782,
+          "ln_U_over_M": 3.9275,
+          "obs_delta": 0.0118,
+          "pred_5pt_log_um": 0.01689,
+          "resid_5pt_log_um": -0.00509,
+          "pred_3pt_log_um": 0.01515,
+          "resid_3pt_log_um": -0.00335
+        },
+        {
+          "point": "125M M=1M",
+          "U": 119277299,
+          "M": 1000000,
+          "U_over_M": 119.277,
+          "ln_U_over_M": 4.7815,
+          "obs_delta": 0.0298,
+          "pred_5pt_log_um": 0.02414,
+          "resid_5pt_log_um": 0.00566,
+          "pred_3pt_log_um": 0.02119,
+          "resid_3pt_log_um": 0.00861
+        }
+      ],
+      "candidates_5pt": {
+        "log_U_over_M": {
+          "n": 5,
+          "k_regression_params": 2,
+          "p_likelihood_params": 3,
+          "params": {
+            "a": 0.00849,
+            "b": -0.016459
+          },
+          "rss": 6.935e-05,
+          "rmse": 0.003724,
+          "r2": 0.87854,
+          "adj_r2": 0.83805,
+          "aic": -49.929,
+          "bic": -51.101,
+          "pred": [
+            0.01943,
+            0.00766,
+            -0.00411,
+            0.01689,
+            0.02414
+          ],
+          "residuals": [
+            -0.00293,
+            0.00134,
+            0.00101,
+            -0.00509,
+            0.00566
+          ]
+        },
+        "log_M_only": {
+          "n": 5,
+          "k_regression_params": 2,
+          "p_likelihood_params": 3,
+          "params": {
+            "a": 0.002405,
+            "b": -0.013937
+          },
+          "rss": 0.00048723,
+          "rmse": 0.009871,
+          "r2": 0.14662,
+          "adj_r2": -0.13784,
+          "aic": -40.181,
+          "bic": -41.353,
+          "pred": [
+            0.00699,
+            0.01032,
+            0.01365,
+            0.01375,
+            0.01929
+          ],
+          "residuals": [
+            0.00951,
+            -0.00132,
+            -0.01675,
+            -0.00195,
+            0.01051
+          ]
+        },
+        "linear_U_over_M_null": {
+          "n": 5,
+          "k_regression_params": 2,
+          "p_likelihood_params": 3,
+          "params": {
+            "a": 0.000253,
+            "b": -0.000348
+          },
+          "rss": 4.058e-05,
+          "rmse": 0.002849,
+          "r2": 0.92892,
+          "adj_r2": 0.90522,
+          "aic": -52.608,
+          "bic": -53.78,
+          "pred": [
+            0.01698,
+            0.00398,
+            0.00073,
+            0.01249,
+            0.02981
+          ],
+          "residuals": [
+            -0.00048,
+            0.00502,
+            -0.00383,
+            -0.00069,
+            -1e-05
+          ]
+        },
+        "constant_null": {
+          "n": 5,
+          "k_regression_params": 1,
+          "p_likelihood_params": 2,
+          "params": {
+            "b": 0.0128
+          },
+          "rss": 0.00057094,
+          "rmse": 0.010686,
+          "r2": 0.0,
+          "adj_r2": 0.0,
+          "aic": -41.388,
+          "bic": -42.169,
+          "pred": [
+            0.0128,
+            0.0128,
+            0.0128,
+            0.0128,
+            0.0128
+          ],
+          "residuals": [
+            0.0037,
+            -0.0038,
+            -0.0159,
+            -0.001,
+            0.017
+          ]
+        }
+      },
+      "zipf_sensitivity": {
+        "normalized_1_over_ZU": {
+          "s=0.8": {
+            "3pt_r2": 0.99635,
+            "3pt_adj_r2": 0.99269,
+            "5pt_r2": 0.79068,
+            "5pt_adj_r2": 0.72091,
+            "5pt_aic": -47.208,
+            "5pt_bic": -48.38
+          },
+          "s=1.0": {
+            "3pt_r2": 0.98084,
+            "3pt_adj_r2": 0.96167,
+            "5pt_r2": 0.42747,
+            "5pt_adj_r2": 0.23662,
+            "5pt_aic": -42.177,
+            "5pt_bic": -43.348
+          },
+          "s=1.2": {
+            "3pt_r2": 0.96002,
+            "3pt_adj_r2": 0.92004,
+            "5pt_r2": 0.00097,
+            "5pt_adj_r2": -0.33204,
+            "5pt_aic": -39.393,
+            "5pt_bic": -40.565
+          }
+        },
+        "fixed_c0_truncated": {
+          "s=0.8": {
+            "3pt_r2": 0.98227,
+            "3pt_adj_r2": 0.96454,
+            "5pt_r2": 0.86844,
+            "5pt_adj_r2": 0.82458,
+            "5pt_aic": -49.53,
+            "5pt_bic": -50.701
+          },
+          "s=1.0": {
+            "3pt_r2": 0.9805,
+            "3pt_adj_r2": 0.96101,
+            "5pt_r2": 0.87981,
+            "5pt_adj_r2": 0.83975,
+            "5pt_aic": -49.982,
+            "5pt_bic": -51.153
+          },
+          "s=1.2": {
+            "3pt_r2": 0.96009,
+            "3pt_adj_r2": 0.92019,
+            "5pt_r2": 0.00011,
+            "5pt_adj_r2": -0.33319,
+            "5pt_aic": -39.389,
+            "5pt_bic": -40.561
+          }
+        }
+      }
+    }
+  },
+  "proposition1_mid_tier_risk": {
+    "decomposition": "R = R_coll(U, M) + B_rank(r) + V_est(c)",
+    "token_ratio_125m_over_30m": 83.33,
+    "caveat_cross_scale_confound": "30M vs 125M differs by 83.3x tokens (V_est drops ~83x); clean comparison is same-scale u123 vs ctrl_hs_pruned.",
+    "buckets_125m_u123_minus_pruned": {
+      "pc_0": {
+        "mean_diff": -0.01765,
+        "p": 0.0198,
+        "note": "Significantly negative -> global non-lookup/adapter-interaction component exists"
+      },
+      "pc_2": {
+        "mean_diff": -0.03265,
+        "p": 0.0204,
+        "note": "Statistically indistinguishable from pc_4"
+      },
+      "pc_3": {
+        "mean_diff": -0.01827,
+        "p": 0.0374
+      },
+      "pc_4": {
+        "mean_diff": -0.03356,
+        "p": 0.0091,
+        "note": "Largest point estimate (includes exact 3g hits)"
+      }
+    },
+    "30m_same_scale_fullmid_vs_lowrank_hashed": 0.0284,
+    "30m_same_scale_fullmid_vs_pruned_ns": 0.0118
+  },
+  "heuristic1_cross_layer_snr": {
+    "depths": [
+      2,
+      4,
+      6
+    ],
+    "rho_3seed_mean": [
+      0.1498,
+      0.1271,
+      0.1142
+    ],
+    "rho_3seed_sd": [
+      0.0336,
+      0.0048,
+      0.0039
+    ],
+    "L_eff": [
+      1.739,
+      2.896,
+      3.819
+    ],
+    "L_eff_ratio_L6_over_L2": 2.2,
+    "observed_3g_gain": [
+      0.0014,
+      0.003,
+      0.009
+    ],
+    "observed_3g_ratio_L6_over_L2": 6.43,
+    "unexplained_multiplier": 2.93,
+    "caveats": [
+      "rho is gradient cosine similarity, not noise correlation (heuristic substitution).",
+      "B_conflict(L) is not independently measured.",
+      "L=2->4 drop in rho (0.0227) is smaller than L=2 SD (0.0336)."
+    ]
+  },
+  "empirical_boundary_eq_weights": {
+    "n_seeds_plain_eq_weights": 1,
+    "status": "Empirical boundary (single seed; Wave 3 adds seeds 1 & 2)",
+    "u123_minus_eqW_s0": [
+      -0.06976,
+      -0.07676,
+      -0.03175,
+      0.00748,
+      0.03546,
+      0.07588
+    ],
+    "crossover_bracket_M": [
+      250,
+      500
+    ],
+    "interpolated_T_eqW_M": 438.1,
+    "u123_b16_speedup_vs_eqW": 1.695,
+    "u1_b16_speedup_vs_eqW": 1.898
+  }
+}
