@@ -18,6 +18,9 @@ set -euo pipefail
 
 SCALE="${SCALE:-125m}"
 DATA_DIR="${DATA_DIR:-./data}"
+PHASE1_DIR="${PHASE1_DIR:-./runs_125m}"
+OUT_DIR_125M="${OUT_DIR_125M:-./runs_125m_phase2}"
+OUT_DIR_350M="${OUT_DIR_350M:-./runs_350m}"
 VAL_SHARD="${DATA_DIR}/fineweb_val_000000.bin"
 DTYPE="${DTYPE:-auto}"
 
@@ -31,22 +34,23 @@ if [ "${SCALE}" = "125m" ]; then
     CKPT_NAME="ckpt_2500M.pt"
     OUT_DIR="results/zero_memory_diag_125m"
     SPECS=(
-        "runs_125m:u123"
-        "runs_125m:ctrl_hs_pruned"
-        "runs_125m_phase2:plain184"
-        "runs_125m:plain"
-        "runs_125m:word"
+        "${PHASE1_DIR}:u123"
+        "${PHASE1_DIR}:ctrl_hs_pruned"
+        "${OUT_DIR_125M}:plain184"
+        "${OUT_DIR_125M}:uniform_mgram"
+        "${PHASE1_DIR}:plain"
+        "${PHASE1_DIR}:word"
     )
 elif [ "${SCALE}" = "350m" ]; then
     COUNTDATA="results/countdata_350m.npz"
     CKPT_NAME="ckpt_5000M.pt"
     OUT_DIR="results/zero_memory_diag_350m"
     SPECS=(
-        "runs_350m:u123"
-        "runs_350m:ctrl_hs_pruned"
-        "runs_350m:plain_eqFLOP"
-        "runs_350m:plain"
-        "runs_350m:word"
+        "${OUT_DIR_350M}:u123"
+        "${OUT_DIR_350M}:ctrl_hs_pruned"
+        "${OUT_DIR_350M}:plain_eqFLOP"
+        "${OUT_DIR_350M}:plain"
+        "${OUT_DIR_350M}:word"
     )
 else
     echo "[error] SCALE must be 125m or 350m" >&2
